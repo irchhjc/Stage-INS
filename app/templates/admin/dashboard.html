@@ -36,7 +36,17 @@
     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h2 class="h5 mb-1">Affecter les DSF</h2><p class="small text-secondary mb-0">Une DSF non assignée est visible uniquement par l'administrateur.</p></div>
       {% if sessions %}<select id="adminSessionSelector" class="form-select session-selector">{% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} — {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}</select>{% endif %}
     </div>
-    {% if active_session %}<input id="adminDsfSearch" class="form-control mt-3" placeholder="Rechercher NIU, numéro DSF, raison sociale ou contrôleur…">{% endif %}
+    {% if active_session %}
+    <div class="bulk-assignment-panel mt-3">
+      <div><strong>Affectation groupée du classeur</strong><small>Affecte uniquement les DSF encore libres ; les affectations existantes restent verrouillées.</small></div>
+      <form class="bulk-assignment-form d-flex gap-2 flex-wrap" method="post" action="{{ url_for('admin.assign_all_dsfs', import_session_id=active_session.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <select name="user_id" class="form-select" required><option value="" selected disabled>Choisir un contrôleur…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.username }}</option>{% endfor %}</select>
+        <button class="btn btn-success" type="submit">Affecter toutes les DSF libres</button>
+      </form>
+    </div>
+    <input id="adminDsfSearch" class="form-control mt-3" placeholder="Rechercher NIU, numéro DSF, raison sociale ou contrôleur…">
+    {% endif %}
   </div>
   <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
     {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.username if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>

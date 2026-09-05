@@ -94,7 +94,7 @@ Nom d'utilisateur : irch
 Mot de passe : 15081960irchdefluviaire
 ```
 
-L'administrateur peut importer les classeurs, créer les comptes des contrôleurs, assigner chaque DSF et suivre leur progression. Les noms d'utilisateur doivent être entièrement en minuscules et les mots de passe comporter au moins 10 caractères.
+L'administrateur peut importer les classeurs, créer les comptes des contrôleurs, assigner chaque DSF individuellement ou affecter en une seule action toutes les DSF encore libres d'un classeur, puis suivre leur progression. Les affectations existantes sont verrouillées et ne sont jamais écrasées par l'action groupée. Les noms d'utilisateur doivent être entièrement en minuscules et les mots de passe comporter au moins 10 caractères.
 
 Un contrôleur voit uniquement les DSF qui lui sont assignées. Son export contient les colonnes originales et uniquement ses lignes DSF ; les autres lignes et feuilles du classeur source ne lui sont pas transmises. L'administrateur conserve l'export complet du classeur.
 

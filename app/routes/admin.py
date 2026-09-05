@@ -97,3 +97,43 @@ def assign_dsf(dsf_id):
     db.session.commit()
     flash(f"DSF {dsf.numero_dsf or dsf.niu} assignée à {assignee.username}.", "success")
     return redirect(request.referrer or url_for("admin.dashboard"))
+
+
+@admin_bp.post("/import-sessions/<int:import_session_id>/assign-all")
+@admin_required
+def assign_all_dsfs(import_session_id):
+    import_session = db.get_or_404(ImportSession, import_session_id)
+    user_id = request.form.get("user_id", type=int)
+    assignee = db.session.get(User, user_id) if user_id else None
+    if assignee is None or assignee.role != "controller" or not assignee.is_active:
+        flash("Sélectionnez un contrôleur valide.", "danger")
+        return redirect(url_for("admin.dashboard", session_id=import_session.id))
+
+    dsfs = DSF.query.filter_by(import_session_id=import_session.id).order_by(DSF.id).all()
+    unassigned = [dsf for dsf in dsfs if dsf.assigned_to_id is None]
+    already_assigned = len(dsfs) - len(unassigned)
+    now = datetime.now(timezone.utc)
+    administrator = current_user()
+    for dsf in unassigned:
+        dsf.assignee = assignee
+        dsf.assigned_by = administrator
+        dsf.assigned_at = now
+        db.session.add(
+            AuditLog(
+                dsf_id=dsf.id,
+                action="affectation DSF groupée",
+                old_value="Non assignée",
+                new_value=assignee.username,
+                operator=administrator.username,
+            )
+        )
+    db.session.commit()
+
+    if unassigned:
+        message = f"{len(unassigned)} DSF affectée(s) à {assignee.username}."
+        if already_assigned:
+            message += f" {already_assigned} DSF déjà affectée(s) ont été conservées sans modification."
+        flash(message, "success")
+    else:
+        flash("Toutes les DSF de ce classeur étaient déjà affectées. Aucune modification effectuée.", "warning")
+    return redirect(url_for("admin.dashboard", session_id=import_session.id))

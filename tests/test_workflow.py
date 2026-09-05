@@ -169,6 +169,23 @@ def test_admin_creates_assigns_and_restricts_controller_access(client, imported_
     assert db.session.get(DSF, first.id).assigned_to_id == controller.id
     assert AuditLog.query.filter_by(dsf_id=first.id, action="affectation DSF").count() == 1
 
+    client.post(
+        "/admin/users",
+        data={"username": "controleur2", "password": "motdepasse20"},
+    )
+    controller2 = User.query.filter_by(username="controleur2").one()
+    bulk_assignment = client.post(
+        f"/admin/import-sessions/{imported_session.id}/assign-all",
+        data={"user_id": controller2.id},
+        follow_redirects=True,
+    )
+    bulk_html = bulk_assignment.get_data(as_text=True)
+    assert "1 DSF affectée(s) à controleur2" in bulk_html
+    assert "1 DSF déjà affectée(s)" in bulk_html
+    assert db.session.get(DSF, first.id).assigned_to_id == controller.id
+    assert db.session.get(DSF, second.id).assigned_to_id == controller2.id
+    assert AuditLog.query.filter_by(dsf_id=second.id, action="affectation DSF groupée").count() == 1
+
     client.post("/auth/logout")
     anonymous = client.get("/", follow_redirects=False)
     assert anonymous.status_code == 302

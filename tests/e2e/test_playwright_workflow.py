@@ -77,6 +77,18 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         expect(assigned_row.get_by_text("Affectation verrouillée")).to_be_visible()
         expect(assigned_row.locator("select[name=user_id]")).to_have_count(0)
 
+        page.get_by_label("Nom d'utilisateur").fill("controleur2")
+        page.get_by_label("Mot de passe").fill("motdepasse20")
+        page.get_by_role("button", name="Créer le compte").click()
+        expect(page.get_by_text("Le compte controleur2 a été créé.")).to_be_visible()
+        bulk_form = page.locator(".bulk-assignment-form")
+        bulk_form.locator("select[name=user_id]").select_option(label="controleur2")
+        page.once("dialog", lambda dialog: dialog.accept())
+        bulk_form.get_by_role("button", name="Affecter toutes les DSF libres").click()
+        expect(page.get_by_text("1 DSF affectée(s) à controleur2")).to_be_visible()
+        expect(page.locator("#adminDsfRows tr", has_text="DSF-001").get_by_text("controleur", exact=True)).to_be_visible()
+        expect(page.locator("#adminDsfRows tr", has_text="DSF-002").get_by_text("controleur2", exact=True)).to_be_visible()
+
         page.get_by_role("button", name="Déconnexion").click()
         _login(page, base_url, "controleur", "motdepasse10")
         expect(page.get_by_role("link", name="Mes DSF")).to_be_visible()

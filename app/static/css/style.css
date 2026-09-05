@@ -75,6 +75,10 @@ body {
 .assigned-lock { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .2rem .55rem; min-width: 180px; }
 .assigned-lock strong { color: var(--navy); font-size: .86rem; }
 .assigned-lock small { grid-column: 2; color: var(--gray-600); font-size: .68rem; }
+.bulk-assignment-panel { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem 1rem; border: 1px solid #b9dfc3; border-radius: 10px; background: #f0faf3; }
+.bulk-assignment-panel > div { display: flex; flex-direction: column; }
+.bulk-assignment-panel small { margin-top: .18rem; color: var(--gray-600); }
+.bulk-assignment-form select { min-width: 210px; }
 
 .empty-state { min-height: 360px; display: grid; place-items: center; align-content: center; text-align: center; gap: .7rem; background: #fff; border: 1px dashed var(--gray-300); border-radius: 16px; }
 .empty-icon { width: 68px; height: 68px; display: grid; place-items: center; border-radius: 18px; background: #e8f1ff; color: var(--blue); font-weight: 800; }
@@ -201,6 +205,8 @@ body {
   .header-collapsed .workspace-toolbar { top: 0; }
   .focus-mode .accounting-table-wrap { min-height: calc(100vh - 118px); max-height: calc(100vh - 86px); }
   .user-identity { margin-top: .7rem; border-left: 0; padding-left: 0; }
+  .bulk-assignment-panel { align-items: stretch; flex-direction: column; }
+  .bulk-assignment-form, .bulk-assignment-form select, .bulk-assignment-form .btn { width: 100%; }
   .metric-card strong { font-size: 1.45rem; }
   .fiche-actions-footer, .fiche-footer-navigation, .fiche-footer-validation { width: 100%; flex-direction: column; align-items: stretch; }
   .fiche-footer-navigation .btn, .fiche-step-navigation .btn { max-width: none; }

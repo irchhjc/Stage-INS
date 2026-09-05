@@ -355,6 +355,14 @@
     });
   });
 
+  document.querySelector(".bulk-assignment-form")?.addEventListener("submit", event => {
+    const select = event.currentTarget.querySelector("select[name=user_id]");
+    const username = select?.selectedOptions[0]?.textContent || "ce contrôleur";
+    if (!window.confirm(`Affecter toutes les DSF encore libres de ce classeur à ${username} ? Cette affectation sera définitive.`)) {
+      event.preventDefault();
+    }
+  });
+
   const logoRotator = document.querySelector("[data-logo-rotator]");
   const partnerLogos = Array.from(logoRotator?.querySelectorAll("[data-partner-logo]") || []);
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
