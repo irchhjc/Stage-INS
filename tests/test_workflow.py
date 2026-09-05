@@ -1,6 +1,7 @@
 import io
 
 from openpyxl import load_workbook
+from sqlalchemy import text
 
 from app.extensions import db
 from app.models import AuditLog, DSF, DSFValue, FicheStatus, ImportColumn, User
@@ -15,6 +16,12 @@ def test_institutional_branding_and_logo_assets(client):
     assert "HISWACA" in html
     assert client.get("/brand-assets/ins_congo.png").status_code == 200
     assert client.get("/brand-assets/partenaire1.jpg").mimetype == "image/jpeg"
+
+
+def test_sqlite_waits_for_transient_writes(app):
+    with app.app_context():
+        busy_timeout = db.session.execute(text("PRAGMA busy_timeout")).scalar()
+    assert busy_timeout == 60000
 
 
 def test_import_preserves_duplicate_headers_and_duplicate_niu(client, imported_session):
@@ -107,7 +114,7 @@ def test_edit_validate_search_and_export(client, imported_session):
     workbook.close()
 
 
-def test_invalid_workbook_is_rejected_without_crash(client):
+def test_invalid_workbook_is_rejected_without_crash(client, app):
     response = client.post(
         "/import/",
         data={"file": (io.BytesIO(b"not-an-xlsx"), "bad.xlsx")},
@@ -116,6 +123,7 @@ def test_invalid_workbook_is_rejected_without_crash(client):
     )
     assert response.status_code == 200
     assert "classeur .xlsx lisible" in response.get_data(as_text=True)
+    assert not list(app.config["UPLOAD_FOLDER"].rglob("*.xlsx"))
 
 
 def test_admin_creates_assigns_and_restricts_controller_access(client, imported_session):

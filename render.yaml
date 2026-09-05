@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: controle-dsf
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT --workers 1 --threads 1 --timeout 300
+    healthCheckPath: /auth/login
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.14.3
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        value: sqlite:////opt/render/project/src/instance/dsf_control.db
+      - key: INITIAL_ADMIN_USERNAME
+        value: irch
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+    disk:
+      name: dsf-data
+      mountPath: /opt/render/project/src/instance
+      sizeGB: 1
