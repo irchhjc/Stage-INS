@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import status_badge %}
+{% block title %}Tableau de bord — Contrôle DSF{% endblock %}
+{% block content %}
+<div class="page-heading align-items-end">
+  <div>
+    <p class="eyebrow">PILOTAGE</p>
+    <h1>Tableau de bord</h1>
+    {% if active_session %}<p class="text-secondary mb-0">{{ active_session.filename }} · {{ active_session.row_count }} DSF · {{ active_session.column_count }} variables</p>{% endif %}
+  </div>
+  {% if active_session %}
+  <form method="post" action="{{ url_for('export_excel.export_workbook', import_session_id=active_session.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <button class="btn btn-success">{{ 'Exporter le classeur contrôlé' if current_user.is_admin else 'Exporter mes DSF contrôlées' }}</button>
+  </form>
+  {% endif %}
+</div>
+
+{% if not active_session %}
+<div class="empty-state mt-4">
+  <div class="empty-icon">DSF</div>
+  <h2>{{ 'Aucun classeur importé' if current_user.is_admin else 'Aucune DSF assignée' }}</h2>
+  {% if current_user.is_admin %}<p>Importez le fichier présent dans le dossier ou choisissez un autre classeur .xlsx.</p><a class="btn btn-primary" href="{{ url_for('import_excel.import_page') }}">Commencer l'import</a>
+  {% else %}<p>L'administrateur doit vous assigner au moins une DSF avant que vous puissiez commencer le contrôle.</p>{% endif %}
+</div>
+{% else %}
+<div class="row g-3 mt-2 metric-grid">
+  <div class="col-6 col-xl"><div class="metric-card"><span>Total DSF</span><strong>{{ stats.total }}</strong></div></div>
+  <div class="col-6 col-xl"><div class="metric-card metric-muted"><span>Non commencées</span><strong>{{ stats.not_started }}</strong></div></div>
+  <div class="col-6 col-xl"><div class="metric-card metric-warning"><span>En cours</span><strong>{{ stats.in_progress }}</strong></div></div>
+  <div class="col-6 col-xl"><div class="metric-card metric-success"><span>Terminées</span><strong>{{ stats.completed }}</strong></div></div>
+  <div class="col-6 col-xl"><div class="metric-card metric-danger"><span>Avec anomalies</span><strong>{{ stats.with_anomalies }}</strong></div></div>
+</div>
+
+<div class="card panel-card mt-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+      <div>
+        <span class="small text-secondary">Progression générale — DSF terminées / total</span>
+        <div class="h4 mb-0 mt-1">{{ stats.completed }} / {{ stats.total }} — {{ stats.overall_progress }} %</div>
+      </div>
+      <div class="progress dashboard-progress flex-grow-1" role="progressbar" aria-valuenow="{{ stats.overall_progress }}" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar bg-success" style="width: {{ stats.overall_progress }}%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% include 'dsf_table.html' %}
+{% endif %}
+{% endblock %}

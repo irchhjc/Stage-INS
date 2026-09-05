@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block title %}Historique — Contrôle DSF{% endblock %}
+{% block content %}
+<div class="page-heading"><div><p class="eyebrow">TRAÇABILITÉ</p><h1>Historique{% if dsf %} — {{ dsf.niu }}{% endif %}</h1><p class="text-secondary">Les 1 000 événements les plus récents sont affichés.</p></div></div>
+<div class="card panel-card mt-3"><div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>Date</th><th>NIU</th><th>Fiche</th><th>Variable</th><th>Action</th><th>Opérateur</th></tr></thead><tbody>
+{% for log in logs %}<tr><td class="text-nowrap">{{ log.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</td><td>{{ log.dsf.niu or '—' }}</td><td>{{ log.fiche_code or '—' }}</td><td><span title="Colonne {{ log.column_index or '—' }}">{{ log.variable_name or '—' }}</span></td><td><span class="badge text-bg-light border">{{ log.action }}</span></td><td>{{ log.operator or '—' }}</td></tr>{% else %}<tr><td colspan="6" class="text-center py-5 text-secondary">Aucun événement enregistré.</td></tr>{% endfor %}
+</tbody></table></div></div>
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import fiche_link, status_badge %}
+{% block title %}{{ fiche.fiche_name }} — {{ dsf.niu }}{% endblock %}
+{% block content %}
+<div id="fichePage" data-dsf-id="{{ dsf.id }}" data-fiche-code="{{ fiche.fiche_code }}">
+  <div class="workspace-toolbar" role="toolbar" aria-label="Réglages de l'espace de contrôle">
+    <div class="workspace-toolbar-group">
+      <button id="toggleFicheSidebar" class="btn btn-sm btn-outline-primary layout-toggle" type="button" aria-controls="ficheSidebar" aria-expanded="true" title="Réduire ou afficher le menu des fiches">
+        <span class="hamburger-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="toggle-label">Menu des fiches</span>
+      </button>
+      <button id="toggleAppHeader" class="btn btn-sm btn-outline-secondary layout-toggle" type="button" aria-controls="appHeader" aria-expanded="true" title="Réduire ou afficher le menu supérieur">
+        <span aria-hidden="true">↥</span><span class="toggle-label">Menu supérieur</span>
+      </button>
+      <button id="toggleFocusMode" class="btn btn-sm btn-primary layout-toggle" type="button" aria-pressed="false" title="Donner le maximum d'espace au tableau">
+        <span aria-hidden="true">⛶</span><span class="toggle-label">Agrandir le tableau</span>
+      </button>
+    </div>
+    <div class="workspace-context"><strong>{{ fiche.fiche_name }}</strong><span>{{ dsf.niu or 'NIU non renseigné' }}</span></div>
+  </div>
+
+  <div class="dsf-header card panel-card mb-3">
+    <div class="card-body p-3 p-lg-4">
+      <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+        <div><a class="small text-decoration-none" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">← Vue d'ensemble</a><h1 class="h3 mt-2 mb-1">{{ dsf.raison_sociale or 'Raison sociale non renseignée' }}</h1><p class="text-secondary mb-0">NIU {{ dsf.niu or '—' }} · N° {{ dsf.numero_dsf or '—' }} · {{ dsf.annee or '—' }} · Contrôleur : <strong>{{ dsf.assignee.username if dsf.assignee else 'non assigné' }}</strong></p></div>
+        <div class="text-end"><div id="ficheStatusBadge">{{ status_badge(fiche.status) }}</div><div class="small text-secondary mt-2"><span id="completedCount">{{ completed }}</span> / {{ total }} fiches — <span id="dsfProgressText">{{ dsf.progress_percent }}</span> %</div></div>
+      </div>
+      <div class="progress mt-3"><div id="dsfProgressBar" class="progress-bar bg-success" style="width:{{ dsf.progress_percent }}%"></div></div>
+    </div>
+  </div>
+
+  <div class="fiche-workspace">
+    <aside id="ficheSidebar" class="fiche-sidebar-column">
+      <div class="fiche-sidebar card panel-card"><div class="card-body p-2">
+        <div class="p-2"><label class="form-label small fw-semibold" for="variableSearch">Rechercher une variable</label><div class="position-relative"><input id="variableSearch" class="form-control form-control-sm" placeholder="Ex. Clients"><div id="variableSearchResults" class="search-results d-none"></div></div></div>
+        <hr class="my-2">
+        {% for item in fiche_statuses %}{{ fiche_link(dsf, item, issue_codes, fiche.fiche_code) }}{% endfor %}
+      </div></div>
+    </aside>
+    <section class="fiche-content-column">
+      <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap mb-3">
+        <div><p class="eyebrow mb-1">FICHE COMPTABLE</p><h2 class="h4 mb-0">{{ fiche.fiche_name }}</h2></div>
+        <div class="d-flex gap-2 flex-wrap align-items-center">
+          <nav class="fiche-step-navigation" aria-label="Navigation entre les fiches">
+            {% if previous_fiche %}<a id="previousFicheLink" class="btn btn-outline-primary" href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=previous_fiche.fiche_code) }}" title="Alt + flèche gauche">← Précédente</a>{% endif %}
+            {% if next_fiche %}<a id="nextFicheLink" class="btn btn-primary" href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=next_fiche.fiche_code) }}" title="Alt + flèche droite">Suivante : {{ next_fiche.fiche_name }} →</a>{% endif %}
+          </nav>
+          {% if fiche.status in ['verified', 'not_provided'] %}<button class="btn btn-outline-secondary action-fiche" data-action="reopen">Rouvrir</button>{% endif %}
+          <button class="btn btn-outline-dark action-fiche" data-action="not-provided">Ø Non renseignée sur papier</button>
+          <button id="validateFicheButton" class="btn btn-success action-fiche" data-action="validate">✓ Valider cette fiche</button>
+        </div>
+      </div>
+
+      {% for issue in issues %}
+      <div class="alert {{ 'alert-danger' if issue.level == 'error' else 'alert-warning' }} validation-issue">
+        <strong>{{ 'Erreur de cohérence' if issue.level == 'error' else 'Attention' }}</strong>
+        <div>{{ issue.message }}</div>
+        <div class="small mt-1">Observé : {{ '{:,.2f}'.format(issue.observed).replace(',', ' ') }} · Attendu : {{ '{:,.2f}'.format(issue.expected).replace(',', ' ') }} · Écart : {{ '{:,.2f}'.format(issue.difference).replace(',', ' ') }}</div>
+        <div class="small mt-2 fw-semibold">Après examen, cette fiche peut être validée en confirmant explicitement que vous acceptez l'anomalie signalée.</div>
+      </div>
+      {% endfor %}
+
+      <div class="legend-line mb-3"><span><i class="legend-dot dot-black"></i> Non vérifiée</span><span><i class="legend-dot dot-green"></i> Vérifiée</span><span><i class="legend-dot dot-corrected"></i> Corrigée</span><span><i class="legend-dot dot-red"></i> Anomalie</span><span><i class="legend-dot dot-gray"></i> Non applicable</span></div>
+
+      {% for section in sections %}
+      <div class="accordion mb-3" id="section-{{ section.number }}">
+        <div class="accordion-item panel-card border-0">
+          <h3 class="accordion-header"><button class="accordion-button {{ '' if loop.first else 'collapsed' }}" type="button" data-bs-toggle="collapse" data-bs-target="#section-body-{{ section.number }}">{{ section.title }}</button></h3>
+          <div id="section-body-{{ section.number }}" class="accordion-collapse collapse {{ 'show' if loop.first else '' }}">
+            <div class="accordion-body p-0">
+              <div class="table-responsive accounting-table-wrap">
+                <table class="table accounting-table align-middle mb-0">
+                  <thead><tr><th class="poste-column">Poste</th>{% for slot in section.slots %}<th>{{ slot.label }}</th>{% endfor %}<th class="row-action-column">Contrôle</th></tr></thead>
+                  <tbody>
+                  {% for row in section.rows %}
+                    <tr>
+                      <th scope="row" class="poste-cell">{{ row.poste }}</th>
+                      {% for slot in section.slots %}
+                        {% set value = row.cells.get(slot.key) %}
+                        {% if value %}
+                        <td id="value-{{ value.id }}" class="value-cell status-{{ value.status }} {{ 'is-corrected' if value.corrected else '' }}" title="{{ value.variable_name }} · colonne {{ value.column.excel_column_letter }}">
+                          <input class="value-input" type="text" value="{{ display_value(value.current_value) }}" data-raw="{{ raw_input_value(value.current_value) }}" data-value-id="{{ value.id }}" data-status="{{ value.status }}" autocomplete="off" aria-label="{{ value.variable_name }}">
+                          <div class="cell-actions">
+                            <button type="button" title="Vérifier" data-set-status="verified">✓</button>
+                            <button type="button" title="Signaler une anomalie" data-set-status="anomaly">!</button>
+                            <button type="button" title="Non applicable" data-set-status="not_applicable">Ø</button>
+                          </div>
+                          <span class="save-indicator" aria-live="polite"></span>
+                        </td>
+                        {% else %}<td class="empty-value">—</td>{% endif %}
+                      {% endfor %}
+                      <td class="row-actions"><button type="button" class="btn btn-sm btn-outline-success verify-row" title="Marquer toute la ligne comme vérifiée">✓ ligne</button></td>
+                    </tr>
+                  {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% else %}<div class="alert alert-info">Aucune variable n'est associée à cette fiche dans le mapping.</div>{% endfor %}
+
+      <div class="fiche-actions-footer">
+        <div class="fiche-footer-navigation">
+          {% if previous_fiche %}<a class="btn btn-outline-primary" href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=previous_fiche.fiche_code) }}">← {{ previous_fiche.fiche_name }}</a>{% endif %}
+          {% if next_fiche %}<a class="btn btn-primary" href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=next_fiche.fiche_code) }}">{{ next_fiche.fiche_name }} →</a>{% else %}<a class="btn btn-primary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Vue d'ensemble →</a>{% endif %}
+        </div>
+        <div class="fiche-footer-validation">
+        <button class="btn btn-outline-dark action-fiche" data-action="not-provided">Ø Non renseignée sur papier</button>
+        <button class="btn btn-success action-fiche" data-action="validate">✓ Valider cette fiche</button>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}

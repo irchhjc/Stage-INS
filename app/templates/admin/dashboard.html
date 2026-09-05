@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import status_badge %}
+{% block title %}Administration — Contrôle DSF{% endblock %}
+{% block content %}
+<div class="page-heading align-items-end">
+  <div><p class="eyebrow">ADMINISTRATION</p><h1>Utilisateurs et affectations</h1><p class="text-secondary mb-0">Créez les contrôleurs, distribuez les DSF et suivez l'avancement.</p></div>
+  <a class="btn btn-primary" href="{{ url_for('import_excel.import_page') }}">Importer un classeur</a>
+</div>
+
+<div class="row g-4 mt-1">
+  <div class="col-xl-4">
+    <div class="card panel-card h-100"><div class="card-body p-4">
+      <h2 class="h5">Créer un contrôleur</h2>
+      <p class="small text-secondary">Le nom doit être en minuscules et le mot de passe comporter au moins 10 caractères.</p>
+      <form method="post" action="{{ url_for('admin.create_controller') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3"><label class="form-label" for="newUsername">Nom d'utilisateur</label><input id="newUsername" name="username" class="form-control" pattern="[a-z0-9._-]{3,50}" minlength="3" maxlength="50" required autocapitalize="none" spellcheck="false"></div>
+        <div class="mb-3"><label class="form-label" for="newPassword">Mot de passe</label><input id="newPassword" name="password" type="password" class="form-control" minlength="10" required autocomplete="new-password"></div>
+        <button class="btn btn-success w-100">Créer le compte</button>
+      </form>
+    </div></div>
+  </div>
+  <div class="col-xl-8">
+    <div class="card panel-card h-100"><div class="card-body p-4">
+      <h2 class="h5">Progression des contrôleurs</h2>
+      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Anomalies</th><th>Progression moyenne</th></tr></thead><tbody>
+        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.username }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td></tr>
+        {% else %}<tr><td colspan="6" class="text-center py-4 text-secondary">Aucun contrôleur créé.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div></div>
+  </div>
+</div>
+
+<div class="card panel-card mt-4">
+  <div class="card-header bg-white border-0 p-4 pb-2">
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h2 class="h5 mb-1">Affecter les DSF</h2><p class="small text-secondary mb-0">Une DSF non assignée est visible uniquement par l'administrateur.</p></div>
+      {% if sessions %}<select id="adminSessionSelector" class="form-select session-selector">{% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} — {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}</select>{% endif %}
+    </div>
+    {% if active_session %}<input id="adminDsfSearch" class="form-control mt-3" placeholder="Rechercher NIU, numéro DSF, raison sociale ou contrôleur…">{% endif %}
+  </div>
+  <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
+    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.username if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
+      {% if dsf.assignee %}<div class="assigned-lock"><span class="badge text-bg-success">✓ Affectée</span><strong>{{ dsf.assignee.username }}</strong><small>Affectation verrouillée</small></div>
+      {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.username }}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
+    </td><td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Voir</a></td></tr>
+    {% else %}<tr><td colspan="8" class="text-center py-5 text-secondary">Aucune DSF importée.</td></tr>{% endfor %}
+  </tbody></table></div>
+</div>
+{% endblock %}

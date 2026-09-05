@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Importer un classeur — Contrôle DSF{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">NOUVEL IMPORT</p>
+    <h1>Charger un classeur DSF</h1>
+    <p class="text-secondary mb-0">Le fichier original sera copié et ne sera jamais modifié directement.</p>
+  </div>
+</div>
+
+<div class="row g-4 mt-1">
+  <div class="col-xl-7">
+    <div class="card panel-card h-100">
+      <div class="card-body p-4 p-lg-5">
+        <h2 class="h4">Importer un fichier .xlsx</h2>
+        <p class="text-secondary">La feuille et la ligne d'en-tête sont détectées uniquement lorsqu'une seule structure contenant la colonne exacte <code>NIU</code> est trouvée.</p>
+        <form method="post" enctype="multipart/form-data" class="mt-4">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <div class="upload-zone">
+            <label for="file" class="form-label fw-semibold">Classeur Excel</label>
+            <input class="form-control form-control-lg" type="file" id="file" name="file" accept=".xlsx" required>
+            <div class="form-text">Format accepté : .xlsx — taille maximale : 50 Mo.</div>
+          </div>
+          <button class="btn btn-primary btn-lg mt-4" type="submit">Analyser et importer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-xl-5">
+    <div class="card panel-card h-100">
+      <div class="card-body p-4">
+        <h2 class="h5">Contrôles effectués</h2>
+        <ul class="check-list mt-3">
+          <li>présence unique de la colonne <code>NIU</code> ;</li>
+          <li>repérage explicite des 35 fiches ;</li>
+          <li>conservation des 1 777 noms et positions ;</li>
+          <li>prise en charge des doublons d'en-têtes ;</li>
+          <li>copie immuable du classeur source.</li>
+        </ul>
+        {% if local_workbook %}
+        <hr class="my-4">
+        <p class="mb-2 fw-semibold">Fichier détecté dans le projet</p>
+        <p class="small text-secondary text-break">{{ local_workbook }}</p>
+        <form method="post" action="{{ url_for('import_excel.import_local') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button class="btn btn-outline-primary" type="submit">Importer dsf.xlsx</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

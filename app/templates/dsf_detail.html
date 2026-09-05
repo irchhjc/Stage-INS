@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import fiche_link, status_badge %}
+{% block title %}{{ dsf.niu or 'DSF' }} — Contrôle DSF{% endblock %}
+{% block content %}
+<div class="dsf-header card panel-card mb-4">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div><p class="eyebrow mb-1">DOSSIER DSF</p><h1 class="h3 mb-1">{{ dsf.raison_sociale or 'Raison sociale non renseignée' }}</h1><p class="text-secondary mb-0">NIU {{ dsf.niu or '—' }} · N° {{ dsf.numero_dsf or '—' }} · {{ dsf.annee or 'Année inconnue' }} · Contrôleur : <strong>{{ dsf.assignee.username if dsf.assignee else 'non assigné' }}</strong></p></div>
+      <div>{{ status_badge(dsf.status) }}</div>
+    </div>
+    <div class="d-flex align-items-center gap-3 mt-4"><div class="progress flex-grow-1"><div class="progress-bar bg-success" style="width:{{ dsf.progress_percent }}%"></div></div><strong>{{ completed }} / {{ total }} fiches — {{ dsf.progress_percent }} %</strong></div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <aside class="col-xl-3"><div class="fiche-sidebar card panel-card"><div class="card-body p-2">{% for item in fiche_statuses %}{{ fiche_link(dsf, item, issue_codes) }}{% endfor %}</div></div></aside>
+  <section class="col-xl-9">
+    {% if issues %}<div class="alert alert-warning"><strong>{{ issues|length }} contrôle(s) automatique(s) à examiner.</strong> Ces alertes ne modifient aucune valeur.</div>{% endif %}
+    <div class="card panel-card"><div class="card-body p-4 p-lg-5"><h2 class="h4">Commencer le contrôle</h2><p class="text-secondary">Ouvrez une fiche dans le menu. Une fiche ne devient verte qu'après validation explicite.</p><a class="btn btn-primary" href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=fiche_statuses[0].fiche_code) }}">Ouvrir {{ fiche_statuses[0].fiche_name }}</a></div></div>
+  </section>
+</div>
+{% endblock %}

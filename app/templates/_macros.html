@@ -1,0 +1,24 @@
+{% macro status_badge(status, compact=false) -%}
+{% set labels = {
+  'not_started': ('Non commencée', 'secondary', '○'),
+  'in_progress': ('En cours', 'warning', '●'),
+  'completed': ('Terminée', 'success', '✓'),
+  'verified': ('Vérifiée', 'success', '✓'),
+  'not_provided': ('Non renseignée', 'dark', 'Ø'),
+  'anomaly': ('Anomalie', 'danger', '⚠')
+} %}
+{% set item = labels.get(status, (status, 'secondary', '○')) %}
+<span class="badge text-bg-{{ item[1] }} status-badge">{{ item[2] }}{% if not compact %} {{ item[0] }}{% endif %}</span>
+{%- endmacro %}
+
+{% macro fiche_link(dsf, fiche, issue_codes, active_code=None) -%}
+{% set visual_status = 'anomaly' if fiche.fiche_code in issue_codes and fiche.status not in ['verified', 'not_provided'] else fiche.status %}
+<a class="fiche-nav-item {{ 'active' if fiche.fiche_code == active_code else '' }} status-{{ visual_status }}"
+   href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=fiche.fiche_code) }}">
+  <span class="fiche-icon">
+    {% if visual_status == 'verified' %}✓{% elif visual_status == 'not_provided' %}Ø{% elif visual_status == 'anomaly' %}⚠{% elif visual_status == 'in_progress' %}●{% else %}○{% endif %}
+  </span>
+  <span>{{ fiche.fiche_name }}</span>
+</a>
+{%- endmacro %}
+

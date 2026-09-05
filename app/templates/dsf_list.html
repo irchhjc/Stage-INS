@@ -1,0 +1,9 @@
+{% extends 'base.html' %}
+{% block title %}Toutes les DSF — Contrôle DSF{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><p class="eyebrow">DOSSIERS</p><h1>Toutes les DSF</h1></div>
+</div>
+{% if active_session %}{% include 'dsf_table.html' %}{% else %}<div class="empty-state"><p>Aucun classeur importé.</p></div>{% endif %}
+{% endblock %}
+

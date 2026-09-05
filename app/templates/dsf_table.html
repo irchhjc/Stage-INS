@@ -1,0 +1,42 @@
+{% from '_macros.html' import status_badge %}
+<div class="card panel-card mt-4">
+  <div class="card-header bg-white border-0 p-4 pb-2">
+    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+      <div>
+        <h2 class="h5 mb-1">{{ 'Toutes les DSF' if current_user.is_admin else 'Mes DSF à contrôler' }}</h2>
+        <p class="small text-secondary mb-0">Un NIU dupliqué produit plusieurs lignes : aucune DSF n'est choisie arbitrairement.</p>
+      </div>
+      <select id="sessionSelector" class="form-select session-selector" aria-label="Classeur actif">
+        {% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} — {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="row g-2 mt-3">
+      <div class="col-lg-6"><input id="instantDsfSearch" class="form-control" placeholder="Rechercher NIU, numéro DSF, raison sociale ou sigle…" value="{{ term }}"></div>
+      <div class="col-lg-6 d-flex gap-2 flex-wrap filter-pills">
+        {% for key, label in [('', 'Toutes'), ('not_started', 'Non commencées'), ('in_progress', 'En cours'), ('completed', 'Terminées'), ('anomalies', 'Avec anomalies')] %}
+        <a class="btn btn-sm {{ 'btn-primary' if selected_status == key else 'btn-outline-secondary' }}" href="?session_id={{ active_session.id }}&status={{ key }}">{{ label }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0 dsf-table">
+      <thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Sigle</th><th>Année</th><th>Progression</th><th>Statut</th><th>Anomalies</th><th></th></tr></thead>
+      <tbody id="dsfRows">
+      {% for dsf in dsfs %}
+        <tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.sigle or '')|lower }}">
+          <td class="fw-semibold">{{ dsf.niu or '—' }}</td>
+          <td>{{ dsf.numero_dsf or '—' }}</td>
+          <td><span class="company-name">{{ dsf.raison_sociale or 'Sans raison sociale' }}</span></td>
+          <td>{{ dsf.sigle or '—' }}</td>
+          <td>{{ dsf.annee or '—' }}</td>
+          <td class="progress-cell"><div class="d-flex align-items-center gap-2"><div class="progress"><div class="progress-bar bg-success" style="width:{{ dsf.progress_percent }}%"></div></div><span>{{ dsf.progress_percent }}%</span></div></td>
+          <td>{{ status_badge(dsf.status) }}</td>
+          <td>{% if dsf.anomaly_count %}<span class="badge text-bg-danger">{{ dsf.anomaly_count }}</span>{% else %}<span class="text-secondary">0</span>{% endif %}</td>
+          <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Ouvrir</a></td>
+        </tr>
+      {% else %}<tr id="emptyDsfRow"><td colspan="9" class="text-center py-5 text-secondary">Aucune DSF ne correspond aux critères.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
