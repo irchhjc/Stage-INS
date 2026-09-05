@@ -52,6 +52,7 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
+        page.route("https://cdn.jsdelivr.net/**", lambda route: route.abort())
         _login(page, base_url, "IRCH", "15081960irchdefluviaire")
 
         page.goto(f"{base_url}/import/")
@@ -72,7 +73,7 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         assigned_row.get_by_role("button", name="Affecter").click()
 
         assigned_row = page.locator("#adminDsfRows tr", has_text="DSF-001")
-        expect(assigned_row.get_by_text("Affectée", exact=True)).to_be_visible()
+        expect(assigned_row.locator(".assigned-lock .badge")).to_contain_text("Affectée")
         expect(assigned_row.get_by_text("Affectation verrouillée")).to_be_visible()
         expect(assigned_row.locator("select[name=user_id]")).to_have_count(0)
 
@@ -86,4 +87,3 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         assert forbidden_response.status == 403
         assert page.goto(f"{base_url}/admin/").status == 403
         browser.close()
-
