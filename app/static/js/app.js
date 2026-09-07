@@ -40,6 +40,14 @@
       },
     });
     const payload = await response.json().catch(() => ({ ok: false, error: "Réponse serveur invalide." }));
+    if (response.status === 401) {
+      if (!window.__sessionRedirectInProgress) {
+        window.__sessionRedirectInProgress = true;
+        const returnPath = `${window.location.pathname}${window.location.search}`;
+        window.location.assign(`/auth/login?next=${encodeURIComponent(returnPath)}`);
+      }
+      throw new Error("Votre session a expiré. Reconnexion en cours…");
+    }
     if (!response.ok || payload.ok === false) {
       const error = new Error(payload.error || `Erreur HTTP ${response.status}`);
       error.payload = payload;

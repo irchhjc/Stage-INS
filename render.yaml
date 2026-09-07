@@ -1,10 +1,17 @@
+databases:
+  - name: dsf-compta-db
+    # Plus petit plan payant : la base Free expire après 30 jours.
+    plan: 0.1c-256mb
+    databaseName: dsf_compta
+    user: dsf_compta
+
 services:
   - type: web
     name: controle-dsf
     runtime: python
     plan: starter
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT --workers 1 --threads 1 --timeout 300
+    startCommand: gunicorn run:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 300
     healthCheckPath: /auth/login
     envVars:
       - key: PYTHON_VERSION
@@ -12,7 +19,13 @@ services:
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
-        value: sqlite:////opt/render/project/src/instance/dsf_control.db
+        fromDatabase:
+          name: dsf-compta-db
+          property: connectionString
+      - key: SESSION_LIFETIME_HOURS
+        value: 168
+      - key: SESSION_COOKIE_SECURE
+        value: true
       - key: INITIAL_ADMIN_USERNAME
         value: irch
       - key: INITIAL_ADMIN_PASSWORD

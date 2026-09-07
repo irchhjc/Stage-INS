@@ -24,6 +24,22 @@ def test_sqlite_waits_for_transient_writes(app):
     assert busy_timeout == 60000
 
 
+def test_login_creates_a_permanent_session_and_api_expiry_is_explicit(app):
+    anonymous_client = app.test_client()
+    login = anonymous_client.post(
+        "/auth/login",
+        data={"username": "irch", "password": "15081960irchdefluviaire"},
+    )
+    assert login.status_code == 302
+    with anonymous_client.session_transaction() as user_session:
+        assert user_session.permanent is True
+
+    anonymous_client.post("/auth/logout")
+    expired_api = anonymous_client.patch("/dsf/api/values/1", json={"value": "1"})
+    assert expired_api.status_code == 401
+    assert expired_api.get_json() == {"ok": False, "error": "Authentification requise."}
+
+
 def test_import_preserves_duplicate_headers_and_duplicate_niu(client, imported_session):
     assert imported_session.row_count == 2
     assert DSF.query.filter_by(niu="M001").count() == 2

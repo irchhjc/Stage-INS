@@ -1,3 +1,4 @@
+import re
 import threading
 
 import pytest
@@ -98,4 +99,17 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         forbidden_response = page.goto(f"{base_url}{forbidden_href}")
         assert forbidden_response.status == 403
         assert page.goto(f"{base_url}/admin/").status == 403
+
+        page.goto(f"{base_url}/")
+        controller_href = (
+            page.locator("#dsfRows tr", has_text="DSF-001")
+            .get_by_role("link", name="Ouvrir")
+            .get_attribute("href")
+        )
+        page.goto(f"{base_url}{controller_href}/fiche/IDENT")
+        page.context.clear_cookies()
+        editable = page.locator(".value-input").first
+        editable.fill("DSF-001-SESSION")
+        editable.press("Enter")
+        expect(page).to_have_url(re.compile(r"/auth/login\?next="), timeout=5000)
         browser.close()

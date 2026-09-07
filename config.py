@@ -1,8 +1,24 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 
 BASE_DIR = Path(__file__).resolve().parent
+
+
+def _env_flag(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().casefold() in {"1", "true", "yes", "on"}
+
+
+def _session_lifetime():
+    try:
+        hours = int(os.environ.get("SESSION_LIFETIME_HOURS", "168"))
+    except ValueError:
+        hours = 168
+    return timedelta(hours=max(1, hours))
 
 
 class Config:
@@ -17,6 +33,11 @@ class Config:
         else {"pool_pre_ping": True}
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    PERMANENT_SESSION_LIFETIME = _session_lifetime()
+    SESSION_REFRESH_EACH_REQUEST = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = _env_flag("SESSION_COOKIE_SECURE", _env_flag("RENDER"))
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024
     UPLOAD_FOLDER = BASE_DIR / "instance" / "uploads"
     EXPORT_FOLDER = BASE_DIR / "instance" / "exports"
