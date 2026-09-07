@@ -68,6 +68,9 @@
     input.dataset.raw = payload.raw_value;
     input.dataset.display = payload.display_value;
     input.dataset.dirty = "false";
+    cell.querySelectorAll("[data-set-status]").forEach(button => {
+      button.setAttribute("aria-pressed", String(button.dataset.setStatus === payload.status));
+    });
     if (document.activeElement !== input) input.value = payload.display_value;
   }
 

@@ -107,6 +107,14 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
             .get_attribute("href")
         )
         page.goto(f"{base_url}{controller_href}/fiche/IDENT")
+        editor = page.locator(".cell-editor").first
+        status_actions = editor.locator(".cell-actions")
+        expect(status_actions.locator("button")).to_have_count(3)
+        input_box = editor.locator(".value-input").bounding_box()
+        actions_box = status_actions.bounding_box()
+        last_button_box = status_actions.locator("button").last.bounding_box()
+        assert input_box["x"] + input_box["width"] <= actions_box["x"] + 1
+        assert last_button_box["x"] + last_button_box["width"] <= actions_box["x"] + actions_box["width"] + 1
         page.context.clear_cookies()
         editable = page.locator(".value-input").first
         editable.fill("DSF-001-SESSION")
