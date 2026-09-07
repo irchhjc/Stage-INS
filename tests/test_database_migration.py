@@ -6,6 +6,16 @@ from sqlalchemy import create_engine, func, select
 from app.extensions import db
 from app.models import User
 from scripts.migrate_database import migrate
+from config import normalize_database_url
+
+
+def test_render_postgres_url_uses_psycopg3_driver():
+    assert normalize_database_url("postgresql://user:secret@host/db") == (
+        "postgresql+psycopg://user:secret@host/db"
+    )
+    assert normalize_database_url("postgres://user:secret@host/db") == (
+        "postgresql+psycopg://user:secret@host/db"
+    )
 
 
 def test_migration_copies_rows_and_refuses_a_populated_target(tmp_path):

@@ -21,10 +21,21 @@ def _session_lifetime():
     return timedelta(hours=max(1, hours))
 
 
+def normalize_database_url(database_url):
+    """Sélectionne explicitement psycopg 3 pour les URL PostgreSQL de Render."""
+    if database_url.startswith("postgres://"):
+        return database_url.replace("postgres://", "postgresql+psycopg://", 1)
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return database_url
+
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-change-me-before-production")
-    _DATABASE_URL = os.environ.get(
-        "DATABASE_URL", f"sqlite:///{(BASE_DIR / 'instance' / 'dsf_control.db').as_posix()}"
+    _DATABASE_URL = normalize_database_url(
+        os.environ.get(
+            "DATABASE_URL", f"sqlite:///{(BASE_DIR / 'instance' / 'dsf_control.db').as_posix()}"
+        )
     )
     SQLALCHEMY_DATABASE_URI = _DATABASE_URL
     SQLALCHEMY_ENGINE_OPTIONS = (

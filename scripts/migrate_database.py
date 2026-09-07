@@ -2,11 +2,19 @@
 
 import argparse
 import os
+import sys
+from pathlib import Path
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from sqlalchemy import create_engine, func, inspect, select, text
 
 from app.extensions import db
 import app.models  # noqa: F401 - enregistre les tables dans les métadonnées SQLAlchemy
+from config import normalize_database_url
 
 
 def _arguments():
@@ -72,8 +80,8 @@ def migrate(source_url, target_url):
     if source_url == target_url:
         raise RuntimeError("Les bases source et cible doivent être différentes.")
 
-    source_engine = create_engine(source_url)
-    target_engine = create_engine(target_url, pool_pre_ping=True)
+    source_engine = create_engine(normalize_database_url(source_url))
+    target_engine = create_engine(normalize_database_url(target_url), pool_pre_ping=True)
     try:
         _assert_source_schema(source_engine)
         db.metadata.create_all(target_engine)
