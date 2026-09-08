@@ -41,6 +41,19 @@ def export_controlled_workbook(import_session_id, assigned_user_id=None, usernam
     import_session = db.session.get(ImportSession, import_session_id)
     if import_session is None:
         raise ValueError("Session d'import introuvable.")
+
+    completed_dsfs_query = DSF.query.filter(
+        DSF.import_session_id == import_session.id,
+        DSF.status == "completed",
+    )
+    if assigned_user_id is not None:
+        completed_dsfs_query = completed_dsfs_query.filter(DSF.assigned_to_id == assigned_user_id)
+    completed_dsfs = completed_dsfs_query.order_by(DSF.row_index).all()
+    if not completed_dsfs:
+        raise ValueError("Aucune DSF entièrement contrôlée n'est disponible pour l'export.")
+
+    completed_dsf_ids = [dsf.id for dsf in completed_dsfs]
+    selected_rows = {dsf.row_index for dsf in completed_dsfs}
     source = Path(import_session.filepath)
     if not source.exists():
         raise FileNotFoundError("Le classeur original associé à cet import est introuvable.")
@@ -54,14 +67,12 @@ def export_controlled_workbook(import_session_id, assigned_user_id=None, usernam
         DSFValue.query.options(joinedload(DSFValue.dsf), joinedload(DSFValue.column))
         .join(DSF)
         .join(ImportColumn)
-        .filter(DSF.import_session_id == import_session.id)
+        .filter(
+            DSF.import_session_id == import_session.id,
+            DSF.id.in_(completed_dsf_ids),
+        )
     )
-    if assigned_user_id is not None:
-        values_query = values_query.filter(DSF.assigned_to_id == assigned_user_id)
     values = values_query.order_by(DSF.row_index, ImportColumn.column_index).all()
-    if assigned_user_id is not None and not values:
-        workbook.close()
-        raise ValueError("Aucune DSF de ce classeur ne vous est assignée.")
     for value in values:
         cell = worksheet.cell(row=value.dsf.row_index, column=value.column.column_index)
         if value.corrected:
@@ -70,11 +81,11 @@ def export_controlled_workbook(import_session_id, assigned_user_id=None, usernam
         if value.corrected and value.status == "verified":
             cell.fill = copy(CORRECTED_FILL)
 
+    for row_index in range(worksheet.max_row, import_session.header_row, -1):
+        if row_index not in selected_rows:
+            worksheet.delete_rows(row_index)
+
     if assigned_user_id is not None:
-        selected_rows = {value.dsf.row_index for value in values}
-        for row_index in range(worksheet.max_row, import_session.header_row, -1):
-            if row_index not in selected_rows:
-                worksheet.delete_rows(row_index)
         for other_sheet in list(workbook.worksheets):
             if other_sheet is not worksheet:
                 workbook.remove(other_sheet)
@@ -132,7 +143,7 @@ def export_controlled_workbook(import_session_id, assigned_user_id=None, usernam
     output_dir.mkdir(parents=True, exist_ok=True)
     safe_stem = Path(import_session.filename).stem[:80] or "dsf"
     scope = f"_{username}" if username else ""
-    output_path = output_dir / f"{safe_stem}_controle{scope}_{uuid.uuid4().hex[:8]}.xlsx"
+    output_path = output_dir / f"{safe_stem}_dsf_controlees{scope}_{uuid.uuid4().hex[:8]}.xlsx"
     workbook.save(output_path)
     workbook.close()
     return output_path

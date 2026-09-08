@@ -11,7 +11,9 @@
   {% if active_session %}
   <form method="post" action="{{ url_for('export_excel.export_workbook', import_session_id=active_session.id) }}">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button class="btn btn-success">{{ 'Exporter le classeur contrôlé' if current_user.is_admin else 'Exporter mes DSF contrôlées' }}</button>
+    <button class="btn btn-success" {{ 'disabled' if stats.completed == 0 else '' }} title="{{ 'Aucune DSF terminée à exporter' if stats.completed == 0 else 'Exporter uniquement les DSF entièrement contrôlées' }}">
+      {{ 'Exporter toutes les DSF terminées' if current_user.is_admin else 'Exporter mes DSF terminées' }} ({{ stats.completed }})
+    </button>
   </form>
   {% endif %}
 </div>

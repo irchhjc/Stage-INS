@@ -160,3 +160,9 @@ $env:DATABASE_URL = "sqlite:///D:/chemin/dsf_control.db"
 ```
 
 En production, `SECRET_KEY` doit impérativement être remplacée et le serveur de développement Flask ne doit pas être exposé directement.
+
+## Utilisation sans Internet sur le réseau local
+
+Pour utiliser cet ordinateur comme serveur central Windows avec PostgreSQL et permettre à plusieurs contrôleurs du même réseau d'accéder à l'application sans Internet, suivre le guide [SERVEUR_LOCAL_WINDOWS.md](SERVEUR_LOCAL_WINDOWS.md).
+
+L'interface Bootstrap est stockée dans `app/static/vendor/bootstrap` : aucune connexion au CDN n'est requise. Le serveur local doit être lancé avec `scripts/start_local_server.ps1`, jamais avec le serveur de développement de Flask.

@@ -17,6 +17,9 @@ def export_workbook(import_session_id):
             username=None if user.is_admin else user.username,
         )
         return send_file(path, as_attachment=True, download_name=path.name)
+    except (ValueError, FileNotFoundError) as exc:
+        flash(f"Export impossible : {exc}", "warning")
+        return redirect(request.referrer or url_for("main.dashboard"))
     except Exception as exc:
         current_app.logger.exception("Échec de l'export")
         flash(f"Export impossible : {exc}", "danger")

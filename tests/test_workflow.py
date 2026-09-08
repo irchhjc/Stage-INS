@@ -5,6 +5,15 @@ from sqlalchemy import text
 
 from app.extensions import db
 from app.models import AuditLog, DSF, DSFValue, FicheStatus, ImportColumn, User
+from app.services.dsf_service import FINAL_FICHE_STATUSES, mark_fiche_not_provided
+
+
+def complete_dsf(dsf, operator="Testeur"):
+    unfinished = [fiche for fiche in dsf.fiche_statuses if fiche.status not in FINAL_FICHE_STATUSES]
+    for fiche in unfinished:
+        mark_fiche_not_provided(dsf, fiche.fiche_code, operator)
+    db.session.refresh(dsf)
+    assert dsf.status == "completed"
 
 
 def test_institutional_branding_and_logo_assets(client):
@@ -118,6 +127,7 @@ def test_edit_validate_search_and_export(client, imported_session):
     assert reopened_by_edit.status_code == 200
     assert FicheStatus.query.filter_by(dsf_id=dsf.id, fiche_code="IDENT").one().status == "in_progress"
 
+    complete_dsf(dsf)
     exported = client.post(f"/export/{imported_session.id}")
     assert exported.status_code == 200
     workbook = load_workbook(io.BytesIO(exported.data), data_only=False)
@@ -127,6 +137,35 @@ def test_edit_validate_search_and_export(client, imported_session):
     assert worksheet.cell(dsf.row_index, target.column.column_index).fill.fgColor.rgb == "FFE2F0D9"
     assert "JOURNAL_CONTROLE" in workbook.sheetnames
     assert worksheet.cell(1, target.column.column_index).value == target.variable_name
+    workbook.close()
+
+
+def test_export_contains_only_fully_controlled_dsfs(client, imported_session):
+    dashboard = client.get(f"/?session_id={imported_session.id}")
+    assert "Exporter toutes les DSF terminées (0)" in dashboard.get_data(as_text=True)
+
+    no_completed = client.post(f"/export/{imported_session.id}", follow_redirects=True)
+    assert no_completed.status_code == 200
+    assert "Aucune DSF entièrement contrôlée" in no_completed.get_data(as_text=True)
+
+    first, second = DSF.query.order_by(DSF.id).all()
+    complete_dsf(first)
+    assert second.status == "not_started"
+
+    exported = client.post(f"/export/{imported_session.id}")
+    assert exported.status_code == 200
+    workbook = load_workbook(io.BytesIO(exported.data), data_only=False)
+    worksheet = workbook[imported_session.sheet_name]
+    numero_column = ImportColumn.query.filter_by(
+        import_session_id=imported_session.id,
+        variable_name="NUMERO DE LA DSF",
+    ).one()
+    exported_numbers = [
+        worksheet.cell(row=row_index, column=numero_column.column_index).value
+        for row_index in range(imported_session.header_row + 1, worksheet.max_row + 1)
+    ]
+    assert exported_numbers == [first.numero_dsf]
+    assert second.numero_dsf not in exported_numbers
     workbook.close()
 
 
@@ -244,6 +283,7 @@ def test_admin_creates_assigns_and_restricts_controller_access(client, imported_
         json={"value": "interdit", "status": "verified"},
     ).status_code == 403
 
+    complete_dsf(first, operator="controleur")
     exported = client.post(f"/export/{imported_session.id}")
     assert exported.status_code == 200
     workbook = load_workbook(io.BytesIO(exported.data), data_only=False)

@@ -4,4 +4,5 @@ SQLAlchemy>=2.0,<3
 pandas>=2.3,<4
 openpyxl>=3.1,<4
 gunicorn>=23,<24
+waitress>=3,<4
 psycopg[binary]>=3.2,<4
