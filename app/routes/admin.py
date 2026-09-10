@@ -4,6 +4,7 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
+from app.services.admin_dashboard_service import build_admin_performance
 from app.services.auth_service import admin_required, create_user, current_user
 from app.services.dsf_service import search_dsfs
 
@@ -28,6 +29,7 @@ def _controller_progress(controllers):
                 "in_progress": in_progress,
                 "anomalies": anomalies,
                 "progress": int(round((average or 0) * 100)),
+                "completion_rate": int(round(completed / total * 100)) if total else 0,
             }
         )
     return rows
@@ -43,6 +45,14 @@ def dashboard():
     term = request.args.get("q", "")
     status = request.args.get("status", "")
     dsfs = search_dsfs(term, status, active_session.id if active_session else None) if active_session else []
+    try:
+        performance = build_admin_performance(
+            request.args.get("date_from"),
+            request.args.get("date_to"),
+        )
+    except ValueError as exc:
+        flash(str(exc), "warning")
+        performance = build_admin_performance()
     return render_template(
         "admin/dashboard.html",
         controllers=controllers,
@@ -52,6 +62,7 @@ def dashboard():
         dsfs=dsfs,
         term=term,
         selected_status=status,
+        performance=performance,
     )
 
 

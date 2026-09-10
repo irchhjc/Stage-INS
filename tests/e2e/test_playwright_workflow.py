@@ -62,6 +62,10 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         expect(page.get_by_text("Import terminé : 2 DSF")).to_be_visible()
 
         page.goto(f"{base_url}/admin/")
+        expect(page.get_by_role("heading", name="Performance des contrôles")).to_be_visible()
+        expect(page.get_by_text("DSF saisies sur la période", exact=True)).to_be_visible()
+        expect(page.locator("#performanceDateFrom")).to_be_visible()
+        expect(page.locator("#performanceDateTo")).to_be_visible()
         page.get_by_label("Nom d'utilisateur").fill("controleur")
         page.get_by_label("Mot de passe").fill("motdepasse10")
         page.get_by_role("button", name="Créer le compte").click()
@@ -107,6 +111,14 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
             .get_attribute("href")
         )
         page.goto(f"{base_url}{controller_href}/fiche/IDENT")
+        sidebar_validate = page.get_by_role(
+            "button", name="Valider la fiche Identification et passer à la suivante"
+        )
+        expect(sidebar_validate).to_be_visible()
+        sidebar_validate.click()
+        expect(page).to_have_url(re.compile(r"/fiche/BILAN_ACTIF$"))
+        expect(page.locator("#completedCount")).to_have_text("1")
+
         editor = page.locator(".cell-editor").first
         status_actions = editor.locator(".cell-actions")
         expect(status_actions.locator("button")).to_have_count(3)
@@ -115,6 +127,20 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         last_button_box = status_actions.locator("button").last.bounding_box()
         assert input_box["x"] + input_box["width"] <= actions_box["x"] + 1
         assert last_button_box["x"] + last_button_box["width"] <= actions_box["x"] + actions_box["width"] + 1
+
+        validation_context = browser.new_context(viewport={"width": 1440, "height": 1000})
+        validation_page = validation_context.new_page()
+        validation_page.route("https://cdn.jsdelivr.net/**", lambda route: route.abort())
+        _login(validation_page, base_url, "controleur", "motdepasse10")
+        validation_page.goto(f"{base_url}{controller_href}/fiche/BILAN_ACTIF")
+        dialogs = []
+        validation_page.on("dialog", lambda dialog: (dialogs.append(dialog.message), dialog.dismiss()))
+        validation_page.get_by_role("button", name="Valider et suivante").first.click()
+        expect(validation_page).to_have_url(re.compile(r"/fiche/BILAN_PASSIF$"))
+        expect(validation_page.locator("#completedCount")).to_have_text("2")
+        assert dialogs == []
+        validation_context.close()
+
         page.context.clear_cookies()
         editable = page.locator(".value-input").first
         editable.fill("DSF-001-SESSION")

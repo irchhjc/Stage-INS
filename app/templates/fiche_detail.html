@@ -32,8 +32,10 @@
   <div class="fiche-workspace">
     <aside id="ficheSidebar" class="fiche-sidebar-column">
       <div class="fiche-sidebar card panel-card"><div class="card-body p-2">
-        <div class="p-2"><label class="form-label small fw-semibold" for="variableSearch">Rechercher une variable</label><div class="position-relative"><input id="variableSearch" class="form-control form-control-sm" placeholder="Ex. Clients"><div id="variableSearchResults" class="search-results d-none"></div></div></div>
-        <hr class="my-2">
+        <div class="fiche-sidebar-controls">
+          <div class="p-2"><label class="form-label small fw-semibold" for="variableSearch">Rechercher une variable</label><div class="position-relative"><input id="variableSearch" class="form-control form-control-sm" placeholder="Ex. Clients"><div id="variableSearchResults" class="search-results d-none"></div></div></div>
+          <hr class="my-2">
+        </div>
         {% for item in fiche_statuses %}{{ fiche_link(dsf, item, issue_codes, fiche.fiche_code) }}{% endfor %}
       </div></div>
     </aside>
@@ -47,7 +49,7 @@
           </nav>
           {% if fiche.status in ['verified', 'not_provided'] %}<button class="btn btn-outline-secondary action-fiche" data-action="reopen">Rouvrir</button>{% endif %}
           <button class="btn btn-outline-dark action-fiche" data-action="not-provided">Ø Non renseignée sur papier</button>
-          <button id="validateFicheButton" class="btn btn-success action-fiche" data-action="validate">✓ Valider cette fiche</button>
+          <button id="validateFicheButton" class="btn btn-success action-fiche" data-action="validate">✓ {{ 'Valider et suivante' if next_fiche else 'Valider et terminer' }}</button>
         </div>
       </div>
 
@@ -110,7 +112,7 @@
         </div>
         <div class="fiche-footer-validation">
         <button class="btn btn-outline-dark action-fiche" data-action="not-provided">Ø Non renseignée sur papier</button>
-        <button class="btn btn-success action-fiche" data-action="validate">✓ Valider cette fiche</button>
+        <button class="btn btn-success action-fiche" data-action="validate">✓ {{ 'Valider et suivante' if next_fiche else 'Valider et terminer' }}</button>
         </div>
       </div>
     </section>

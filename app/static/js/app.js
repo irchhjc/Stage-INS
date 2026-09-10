@@ -234,6 +234,24 @@
     persistLayout();
   });
 
+  function nextPendingFicheUrl(dsfId, ficheCode) {
+    const rows = Array.from(document.querySelectorAll(".fiche-nav-row"));
+    const currentIndex = rows.findIndex(row =>
+      row.querySelector(".sidebar-validate-fiche")?.dataset.ficheCode === ficheCode
+    );
+    if (currentIndex < 0) return `/dsf/${dsfId}`;
+    const followingRows = rows.slice(currentIndex + 1).concat(rows.slice(0, currentIndex));
+    const nextRow = followingRows.find(row => {
+      const action = row.querySelector(".sidebar-validate-fiche");
+      return action && !action.disabled;
+    });
+    return nextRow?.querySelector(".fiche-nav-item")?.href || `/dsf/${dsfId}`;
+  }
+
+  function continueAfterFicheValidation(dsfId, ficheCode) {
+    window.location.assign(nextPendingFicheUrl(dsfId, ficheCode));
+  }
+
   async function ficheAction(action) {
     if (!fichePage) return;
     const labels = {
@@ -241,7 +259,7 @@
       "not-provided": "Confirmez-vous que cette fiche n'est pas renseignée dans la DSF papier ?",
       reopen: "Rouvrir cette fiche annulera les vérifications appliquées par sa validation globale. Continuer ?",
     };
-    if (!window.confirm(labels[action])) return;
+    if (action !== "validate" && !window.confirm(labels[action])) return;
     const endpoint = `/dsf/api/${fichePage.dataset.dsfId}/fiches/${fichePage.dataset.ficheCode}/${action}`;
     const submitAction = acknowledgeAnomalies => apiFetch(endpoint, {
       method: "POST",
@@ -251,7 +269,11 @@
     });
     try {
       await submitAction(false);
-      window.location.reload();
+      if (action === "validate") continueAfterFicheValidation(
+        fichePage.dataset.dsfId,
+        fichePage.dataset.ficheCode
+      );
+      else window.location.reload();
     } catch (error) {
       if (action === "validate" && error.payload?.requires_confirmation) {
         const issues = (error.payload.issues || []).slice(0, 5);
@@ -266,7 +288,10 @@
         if (!confirmed) return;
         try {
           await submitAction(true);
-          window.location.reload();
+          continueAfterFicheValidation(
+            fichePage.dataset.dsfId,
+            fichePage.dataset.ficheCode
+          );
         } catch (confirmationError) {
           showToast(confirmationError.message, true);
         }
@@ -276,6 +301,50 @@
     }
   }
   document.querySelectorAll(".action-fiche").forEach(button => button.addEventListener("click", () => ficheAction(button.dataset.action)));
+
+  async function validateSidebarFiche(button) {
+    const ficheName = button.dataset.ficheName;
+    const originalHtml = button.innerHTML;
+    const submit = acknowledgeAnomalies => apiFetch(
+      `/dsf/api/${button.dataset.dsfId}/fiches/${button.dataset.ficheCode}/validate`,
+      {
+        method: "POST",
+        body: JSON.stringify({ acknowledge_anomalies: acknowledgeAnomalies }),
+      }
+    );
+    button.disabled = true;
+    button.textContent = "Validation…";
+    try {
+      await submit(false);
+      continueAfterFicheValidation(button.dataset.dsfId, button.dataset.ficheCode);
+    } catch (error) {
+      if (error.payload?.requires_confirmation) {
+        const issues = (error.payload.issues || []).slice(0, 5);
+        const details = issues.length ? `\n\n${issues.map(issue => `• ${issue}`).join("\n")}` : "";
+        const remainingIssues = Math.max(0, (error.payload.anomaly_count || 0) - issues.length);
+        const more = remainingIssues ? `\n• ... et ${remainingIssues} autre(s) anomalie(s)` : "";
+        const confirmed = window.confirm(
+          `${error.payload.anomaly_count || "Une ou plusieurs"} anomalie(s) ont été détectées.${details}${more}\n\n` +
+          `Avez-vous examiné ces anomalies et souhaitez-vous valider la fiche « ${ficheName} » malgré tout ? ` +
+          "Les anomalies resteront signalées et votre décision sera inscrite dans l'historique."
+        );
+        if (!confirmed) return;
+        await submit(true);
+        continueAfterFicheValidation(button.dataset.dsfId, button.dataset.ficheCode);
+        return;
+      }
+      showToast(error.message, true);
+    } finally {
+      button.disabled = false;
+      button.innerHTML = originalHtml;
+    }
+  }
+
+  document.querySelectorAll(".sidebar-validate-fiche:not(:disabled)").forEach(button => {
+    button.addEventListener("click", () => {
+      validateSidebarFiche(button).catch(error => showToast(error.message, true));
+    });
+  });
 
   document.addEventListener("keydown", event => {
     if (event.key === "Escape" && layoutBody.classList.contains("focus-mode")) {

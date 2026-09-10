@@ -13,12 +13,25 @@
 
 {% macro fiche_link(dsf, fiche, issue_codes, active_code=None) -%}
 {% set visual_status = 'anomaly' if fiche.fiche_code in issue_codes and fiche.status not in ['verified', 'not_provided'] else fiche.status %}
-<a class="fiche-nav-item {{ 'active' if fiche.fiche_code == active_code else '' }} status-{{ visual_status }}"
-   href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=fiche.fiche_code) }}">
-  <span class="fiche-icon">
-    {% if visual_status == 'verified' %}✓{% elif visual_status == 'not_provided' %}Ø{% elif visual_status == 'anomaly' %}⚠{% elif visual_status == 'in_progress' %}●{% else %}○{% endif %}
-  </span>
-  <span>{{ fiche.fiche_name }}</span>
-</a>
+<div class="fiche-nav-row">
+  <a class="fiche-nav-item {{ 'active' if fiche.fiche_code == active_code else '' }} status-{{ visual_status }}"
+     href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=fiche.fiche_code) }}">
+    <span class="fiche-icon">
+      {% if visual_status == 'verified' %}✓{% elif visual_status == 'not_provided' %}Ø{% elif visual_status == 'anomaly' %}⚠{% elif visual_status == 'in_progress' %}●{% else %}○{% endif %}
+    </span>
+    <span class="fiche-nav-name">{{ fiche.fiche_name }}</span>
+  </a>
+  <button
+    type="button"
+    class="sidebar-validate-fiche status-{{ fiche.status }}"
+    data-dsf-id="{{ dsf.id }}"
+    data-fiche-code="{{ fiche.fiche_code }}"
+    data-fiche-name="{{ fiche.fiche_name }}"
+    title="{{ 'Fiche déjà vérifiée' if fiche.status == 'verified' else 'Fiche déclarée non renseignée' if fiche.status == 'not_provided' else 'Valider et ouvrir la prochaine fiche à contrôler' }}"
+    aria-label="{{ 'Fiche ' ~ fiche.fiche_name ~ ' déjà traitée' if fiche.status in ['verified', 'not_provided'] else 'Valider la fiche ' ~ fiche.fiche_name ~ ' et passer à la suivante' }}"
+    {% if fiche.status in ['verified', 'not_provided'] %}disabled{% endif %}
+  >
+    <span aria-hidden="true">{{ 'Ø' if fiche.status == 'not_provided' else '✓' }}</span>
+  </button>
+</div>
 {%- endmacro %}
-

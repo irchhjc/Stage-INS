@@ -71,6 +71,34 @@ body {
 .login-layout { min-height: calc(100vh - 235px); display: grid; place-items: center; padding: 2rem 0; }
 .login-card { width: min(100%, 480px); }
 .admin-progress { width: 105px; height: 7px; }
+.performance-panel { overflow: hidden; }
+.performance-panel .metric-card { padding: .85rem 1rem; }
+.performance-panel .metric-card strong { font-size: 1.55rem; }
+.performance-panel .metric-card small { display: block; min-height: 1.1rem; margin-top: .1rem; color: var(--gray-600); font-size: .67rem; }
+.performance-filter { display: flex; align-items: end; gap: .5rem; padding: .6rem; border: 1px solid var(--gray-100); border-radius: 10px; background: #f8fafc; }
+.performance-filter > div { min-width: 142px; }
+.performance-filter label { display: block; margin-bottom: .18rem; color: var(--gray-600); font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.performance-rate { padding: .8rem 1rem; border: 1px solid #cce6d4; border-radius: 10px; background: #f2faf4; color: #28543a; font-size: .8rem; }
+.performance-rate .progress { height: 8px; background: #dceee1; }
+.trend-legend { display: flex; gap: .9rem; color: var(--gray-600); font-size: .72rem; }
+.trend-legend span { display: inline-flex; align-items: center; gap: .3rem; }
+.trend-key { width: 10px; height: 10px; border-radius: 3px; }
+.key-imported { background: var(--blue); }
+.key-completed { background: var(--green); }
+.trend-list { max-height: 480px; overflow: auto; border: 1px solid var(--gray-100); border-radius: 11px; }
+.trend-row { display: grid; grid-template-columns: 88px minmax(130px, 1.2fr) minmax(245px, 1fr) minmax(290px, 1.15fr); align-items: center; gap: .8rem; min-height: 58px; padding: .55rem .75rem; border-bottom: 1px solid var(--gray-100); }
+.trend-row:last-child { border-bottom: 0; }
+.trend-row time { color: #3e5060; font-size: .76rem; font-weight: 720; font-variant-numeric: tabular-nums; }
+.trend-bars { display: grid; gap: 5px; }
+.trend-track { height: 7px; overflow: hidden; background: #edf1f5; border-radius: 999px; }
+.trend-bar { display: block; min-width: 0; height: 100%; border-radius: inherit; }
+.trend-imported { background: linear-gradient(90deg, #1f6feb, #66a0ef); }
+.trend-completed { background: linear-gradient(90deg, #16803a, #53ad6d); }
+.trend-counts { color: #3e5060; font-size: .72rem; white-space: nowrap; }
+.trend-counts strong { color: var(--navy); font-size: .8rem; }
+.trend-activity { display: flex; justify-content: flex-end; gap: .4rem; flex-wrap: wrap; }
+.trend-activity span { padding: .18rem .4rem; color: #526273; background: #eef2f6; border-radius: 999px; font-size: .63rem; white-space: nowrap; }
+.performance-definition { padding: .65rem .8rem; color: #5b6773; background: #fff8e8; border-left: 4px solid #e2a52f; border-radius: 6px; font-size: .72rem; }
 .assignment-select { min-width: 145px; }
 .assigned-lock { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .2rem .55rem; min-width: 180px; }
 .assigned-lock strong { color: var(--navy); font-size: .86rem; }
@@ -118,7 +146,8 @@ body {
 .focus-mode .dsf-header { display: none; }
 .focus-mode .app-main { padding: .5rem !important; }
 .focus-mode .workspace-toolbar { margin-top: 0; }
-.fiche-nav-item { display: flex; align-items: flex-start; gap: .65rem; padding: .58rem .65rem; margin: .1rem 0; color: #34495e; text-decoration: none; border-radius: 8px; font-size: .84rem; line-height: 1.25; border-left: 3px solid transparent; }
+.fiche-nav-row { display: grid; grid-template-columns: minmax(0, 1fr) 30px; align-items: center; gap: .25rem; margin: .1rem 0; }
+.fiche-nav-item { display: flex; align-items: flex-start; gap: .65rem; min-width: 0; padding: .58rem .55rem; color: #34495e; text-decoration: none; border-radius: 8px; font-size: .84rem; line-height: 1.25; border-left: 3px solid transparent; }
 .fiche-nav-item:hover { background: #f0f5fa; color: #172b3a; }
 .fiche-nav-item.active { background: #e8f1ff; border-left-color: var(--blue); color: #123b69; font-weight: 700; }
 .fiche-nav-item.status-verified .fiche-icon { color: var(--green); }
@@ -126,6 +155,12 @@ body {
 .fiche-nav-item.status-anomaly .fiche-icon { color: var(--red); }
 .fiche-nav-item.status-not_provided .fiche-icon { color: #425466; }
 .fiche-icon { flex: 0 0 15px; text-align: center; font-weight: 850; }
+.fiche-nav-name { min-width: 0; overflow-wrap: anywhere; }
+.fiche-sidebar-controls { position: sticky; top: -8px; z-index: 6; padding-top: 2px; background: #fff; }
+.sidebar-validate-fiche { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; color: var(--green); background: #fff; border: 1px solid #9bcdaa; border-radius: 7px; font-size: .8rem; font-weight: 850; transition: background .12s ease, color .12s ease, transform .12s ease; }
+.sidebar-validate-fiche:hover, .sidebar-validate-fiche:focus-visible { color: #fff; background: var(--green); outline: 2px solid rgba(22,128,58,.2); transform: translateY(-1px); }
+.sidebar-validate-fiche:disabled { color: #fff; background: var(--green); border-color: var(--green); opacity: 1; transform: none; cursor: default; }
+.sidebar-validate-fiche.status-not_provided:disabled { background: #526273; border-color: #526273; }
 
 .search-results { position: absolute; z-index: 1050; inset: calc(100% + 4px) 0 auto 0; max-height: 340px; overflow-y: auto; background: #fff; border: 1px solid var(--gray-300); border-radius: 8px; box-shadow: var(--shadow); }
 .search-result { display: block; padding: .65rem .75rem; color: #172b3a; text-decoration: none; border-bottom: 1px solid var(--gray-100); font-size: .8rem; }
@@ -211,6 +246,11 @@ body {
   .user-identity { margin-top: .7rem; border-left: 0; padding-left: 0; }
   .bulk-assignment-panel { align-items: stretch; flex-direction: column; }
   .bulk-assignment-form, .bulk-assignment-form select, .bulk-assignment-form .btn { width: 100%; }
+  .performance-filter { width: 100%; align-items: stretch; flex-direction: column; }
+  .performance-filter > div, .performance-filter .btn { width: 100%; }
+  .trend-row { grid-template-columns: 76px minmax(100px, 1fr); gap: .45rem .7rem; }
+  .trend-counts, .trend-activity { grid-column: 1 / -1; }
+  .trend-activity { justify-content: flex-start; }
   .metric-card strong { font-size: 1.45rem; }
   .fiche-actions-footer, .fiche-footer-navigation, .fiche-footer-validation { width: 100%; flex-direction: column; align-items: stretch; }
   .fiche-footer-navigation .btn, .fiche-step-navigation .btn { max-width: none; }

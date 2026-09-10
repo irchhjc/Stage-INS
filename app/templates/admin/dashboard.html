@@ -3,9 +3,64 @@
 {% block title %}Administration — Contrôle DSF{% endblock %}
 {% block content %}
 <div class="page-heading align-items-end">
-  <div><p class="eyebrow">ADMINISTRATION</p><h1>Utilisateurs et affectations</h1><p class="text-secondary mb-0">Créez les contrôleurs, distribuez les DSF et suivez l'avancement.</p></div>
+  <div><p class="eyebrow">ADMINISTRATION</p><h1>Pilotage et affectations</h1><p class="text-secondary mb-0">Suivez les volumes saisis, l'activité de contrôle et la progression des équipes.</p></div>
   <a class="btn btn-primary" href="{{ url_for('import_excel.import_page') }}">Importer un classeur</a>
 </div>
+
+<section class="card panel-card performance-panel mt-4" aria-labelledby="performanceTitle">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div>
+        <p class="eyebrow mb-1">SUIVI DATÉ</p>
+        <h2 id="performanceTitle" class="h4 mb-1">Performance des contrôles</h2>
+        <p class="small text-secondary mb-0">Tous les classeurs · période du {{ performance.date_from.strftime('%d/%m/%Y') }} au {{ performance.date_to.strftime('%d/%m/%Y') }} · heure {{ performance.timezone }}</p>
+      </div>
+      <form class="performance-filter" method="get" action="{{ url_for('admin.dashboard') }}">
+        {% if active_session %}<input type="hidden" name="session_id" value="{{ active_session.id }}">{% endif %}
+        <div><label for="performanceDateFrom">Du</label><input id="performanceDateFrom" class="form-control form-control-sm" type="date" name="date_from" value="{{ performance.date_from.isoformat() }}" required></div>
+        <div><label for="performanceDateTo">Au</label><input id="performanceDateTo" class="form-control form-control-sm" type="date" name="date_to" value="{{ performance.date_to.isoformat() }}" required></div>
+        <button class="btn btn-sm btn-primary" type="submit">Actualiser</button>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.dashboard', session_id=active_session.id if active_session else None) }}">30 jours</a>
+      </form>
+    </div>
+
+    <div class="row g-3 mt-2 performance-metrics">
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card"><span>Total historique</span><strong>{{ performance.summary.total_all }}</strong><small>Toutes les DSF importées</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-success"><span>Total DSF terminées</span><strong>{{ performance.summary.completed_all }}</strong><small>Tous classeurs et toutes dates</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card"><span>DSF saisies sur la période</span><strong>{{ performance.summary.period_total }}</strong><small>Date d'import du classeur</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card"><span>Affectées</span><strong>{{ performance.summary.assigned }}</strong><small>{{ performance.summary.unassigned }} non affectées</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-warning"><span>En cours</span><strong>{{ performance.summary.in_progress }}</strong><small>Parmi les DSF saisies</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-success"><span>Terminées sur la période</span><strong>{{ performance.summary.completed }}</strong><small>{{ performance.summary.completion_rate }} % des saisies</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-danger"><span>Avec anomalies</span><strong>{{ performance.summary.anomalies }}</strong><small>Signalées actuellement</small></div></div>
+    </div>
+
+    <div class="performance-rate mt-3" role="progressbar" aria-label="Taux d'achèvement des DSF saisies sur la période" aria-valuenow="{{ performance.summary.completion_rate }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="d-flex justify-content-between gap-3"><span>Taux d'achèvement de la cohorte saisie</span><strong>{{ performance.summary.completion_rate }} %</strong></div>
+      <div class="progress mt-2"><div class="progress-bar bg-success" style="width: {{ performance.summary.completion_rate }}%"></div></div>
+    </div>
+
+    <div class="performance-trend mt-4">
+      <div class="d-flex justify-content-between align-items-end gap-3 flex-wrap mb-3">
+        <div><h3 class="h6 mb-1">Flux quotidien</h3><p class="small text-secondary mb-0">Volumes importés, affectés et activité enregistrée dans le journal de contrôle.</p></div>
+        <div class="trend-legend"><span><i class="trend-key key-imported"></i>DSF saisies</span><span><i class="trend-key key-completed"></i>DSF finalisées</span></div>
+      </div>
+      <div class="trend-list" role="list" aria-label="Indicateurs quotidiens">
+        {% for day in performance.daily %}
+        <div class="trend-row" role="listitem">
+          <time datetime="{{ day.date.isoformat() }}">{{ day.label }}</time>
+          <div class="trend-bars">
+            <div class="trend-track" title="{{ day.imported }} DSF saisie(s)"><span class="trend-bar trend-imported" style="width: {{ day.imported_percent }}%"></span></div>
+            <div class="trend-track" title="{{ day.completed }} DSF finalisée(s)"><span class="trend-bar trend-completed" style="width: {{ day.completed_percent }}%"></span></div>
+          </div>
+          <div class="trend-counts"><strong>{{ day.imported }}</strong> saisies · <strong>{{ day.assigned }}</strong> affectées · <strong>{{ day.completed }}</strong> finalisées</div>
+          <div class="trend-activity"><span>{{ day.active_dsfs }} DSF actives</span><span>{{ day.finalized_fiches }} fiches clôturées</span><span>{{ day.corrections }} corrections</span></div>
+        </div>
+        {% endfor %}
+      </div>
+      <p class="performance-definition mb-0 mt-3"><strong>Lecture correcte :</strong> « saisies » correspond aux lignes DSF importées ce jour-là. « finalisées » correspond aux DSF actuellement terminées, datées par la validation de leur dernière fiche. Ces deux volumes ne décrivent donc pas nécessairement la même cohorte.</p>
+    </div>
+  </div>
+</section>
 
 <div class="row g-4 mt-1">
   <div class="col-xl-4">
@@ -23,9 +78,9 @@
   <div class="col-xl-8">
     <div class="card panel-card h-100"><div class="card-body p-4">
       <h2 class="h5">Progression des contrôleurs</h2>
-      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Anomalies</th><th>Progression moyenne</th></tr></thead><tbody>
-        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.username }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td></tr>
-        {% else %}<tr><td colspan="6" class="text-center py-4 text-secondary">Aucun contrôleur créé.</td></tr>{% endfor %}
+      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th></tr></thead><tbody>
+        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.username }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td></tr>
+        {% else %}<tr><td colspan="7" class="text-center py-4 text-secondary">Aucun contrôleur créé.</td></tr>{% endfor %}
       </tbody></table></div>
     </div></div>
   </div>

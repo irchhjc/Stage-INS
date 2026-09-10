@@ -1,4 +1,6 @@
 import io
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 from openpyxl import load_workbook
 from sqlalchemy import text
@@ -67,6 +69,7 @@ def test_import_preserves_duplicate_headers_and_duplicate_niu(client, imported_s
     assert "toggleFicheSidebar" in fiche_html
     assert "toggleAppHeader" in fiche_html
     assert "toggleFocusMode" in fiche_html
+    assert "Valider et suivante" in fiche_html
 
 
 def test_edit_validate_search_and_export(client, imported_session):
@@ -140,6 +143,17 @@ def test_edit_validate_search_and_export(client, imported_session):
     workbook.close()
 
 
+def test_sidebar_has_one_validate_button_per_fiche(client, imported_session):
+    dsf = DSF.query.order_by(DSF.id).first()
+    fiche_page = client.get(f"/dsf/{dsf.id}/fiche/IDENT")
+    html = fiche_page.get_data(as_text=True)
+    assert fiche_page.status_code == 200
+    assert html.count('class="sidebar-validate-fiche') == len(dsf.fiche_statuses)
+    assert 'data-fiche-code="IDENT"' in html
+    assert "Valider la fiche Identification et passer à la suivante" in html
+    assert "Valider toutes les fiches" not in html
+
+
 def test_export_contains_only_fully_controlled_dsfs(client, imported_session):
     dashboard = client.get(f"/?session_id={imported_session.id}")
     assert "Exporter toutes les DSF terminées (0)" in dashboard.get_data(as_text=True)
@@ -179,6 +193,53 @@ def test_invalid_workbook_is_rejected_without_crash(client, app):
     assert response.status_code == 200
     assert "classeur .xlsx lisible" in response.get_data(as_text=True)
     assert not list(app.config["UPLOAD_FOLDER"].rglob("*.xlsx"))
+
+
+def test_admin_dashboard_reports_dated_performance(client, imported_session):
+    from app.services.admin_dashboard_service import build_admin_performance
+
+    controller = User(username="analyste", role="controller")
+    controller.set_password("motdepasse30")
+    db.session.add(controller)
+    db.session.flush()
+
+    first, second = DSF.query.order_by(DSF.id).all()
+    first.assigned_to_id = controller.id
+    first.assigned_at = datetime.now(timezone.utc)
+    db.session.commit()
+    complete_dsf(first, operator="analyste")
+
+    local_day = datetime.now(ZoneInfo("Africa/Douala")).date().isoformat()
+    performance = build_admin_performance(local_day, local_day)
+    assert performance["summary"] == {
+        "total_all": 2,
+        "completed_all": 1,
+        "period_total": 2,
+        "assigned": 1,
+        "unassigned": 1,
+        "in_progress": 0,
+        "completed": 1,
+        "anomalies": 0,
+        "completion_rate": 50,
+    }
+    assert len(performance["daily"]) == 1
+    daily = performance["daily"][0]
+    assert daily["imported"] == 2
+    assert daily["assigned"] == 1
+    assert daily["completed"] == 1
+    assert daily["active_dsfs"] == 1
+    assert daily["finalized_fiches"] == len(first.fiche_statuses)
+    assert second.status == "not_started"
+
+    response = client.get(f"/admin/?date_from={local_day}&date_to={local_day}")
+    html = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "Performance des contrôles" in html
+    assert "DSF saisies sur la période" in html
+    assert "Total DSF terminées" in html
+    assert "Tous classeurs et toutes dates" in html
+    assert "Taux d'achèvement de la cohorte saisie" in html
+    assert "analyste" in html
 
 
 def test_admin_creates_assigns_and_restricts_controller_access(client, imported_session):
