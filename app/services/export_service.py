@@ -1,6 +1,7 @@
 import uuid
 from copy import copy
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from flask import current_app
 from openpyxl import load_workbook
@@ -147,3 +148,40 @@ def export_controlled_workbook(import_session_id, assigned_user_id=None, usernam
     workbook.save(output_path)
     workbook.close()
     return output_path
+
+
+def export_all_completed_workbooks():
+    completed_by_session = (
+        db.session.query(DSF.import_session_id, db.func.count(DSF.id))
+        .filter(DSF.status == "completed")
+        .group_by(DSF.import_session_id)
+        .order_by(DSF.import_session_id)
+        .all()
+    )
+    if not completed_by_session:
+        raise ValueError("Aucune DSF entièrement contrôlée n'est disponible pour l'export global.")
+
+    output_dir = Path(current_app.config["EXPORT_FOLDER"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+    archive_path = output_dir / f"toutes_dsf_terminees_{uuid.uuid4().hex[:8]}.zip"
+    generated_workbooks = []
+    total_dsfs = sum(count for _, count in completed_by_session)
+    try:
+        with ZipFile(archive_path, "w", compression=ZIP_DEFLATED, allowZip64=True) as archive:
+            for import_session_id, _ in completed_by_session:
+                import_session = db.session.get(ImportSession, import_session_id)
+                try:
+                    workbook_path = export_controlled_workbook(import_session_id)
+                except (ValueError, FileNotFoundError) as exc:
+                    filename = import_session.filename if import_session else f"import {import_session_id}"
+                    raise ValueError(f"{filename} : {exc}") from exc
+                generated_workbooks.append(workbook_path)
+                archive_name = f"classeur_{import_session_id}_{workbook_path.name}"
+                archive.write(workbook_path, arcname=archive_name)
+    except Exception:
+        archive_path.unlink(missing_ok=True)
+        raise
+    finally:
+        for workbook_path in generated_workbooks:
+            workbook_path.unlink(missing_ok=True)
+    return archive_path, len(completed_by_session), total_dsfs

@@ -4,7 +4,15 @@
 {% block content %}
 <div class="page-heading align-items-end">
   <div><p class="eyebrow">ADMINISTRATION</p><h1>Pilotage et affectations</h1><p class="text-secondary mb-0">Suivez les volumes saisis, l'activité de contrôle et la progression des équipes.</p></div>
-  <a class="btn btn-primary" href="{{ url_for('import_excel.import_page') }}">Importer un classeur</a>
+  <div class="d-flex gap-2 flex-wrap justify-content-end">
+    <form method="post" action="{{ url_for('export_excel.export_all_completed') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn btn-success" type="submit" {{ 'disabled' if performance.summary.completed_all == 0 else '' }} title="{{ 'Aucune DSF terminée à exporter' if performance.summary.completed_all == 0 else 'Télécharger les DSF terminées de tous les classeurs et de tous les contrôleurs' }}">
+        Exporter toutes les DSF terminées ({{ performance.summary.completed_all }})
+      </button>
+    </form>
+    <a class="btn btn-primary" href="{{ url_for('import_excel.import_page') }}">Importer un classeur</a>
+  </div>
 </div>
 
 <section class="card panel-card performance-panel mt-4" aria-labelledby="performanceTitle">

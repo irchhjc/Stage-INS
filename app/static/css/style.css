@@ -157,6 +157,8 @@ body {
 .fiche-icon { flex: 0 0 15px; text-align: center; font-weight: 850; }
 .fiche-nav-name { min-width: 0; overflow-wrap: anywhere; }
 .fiche-sidebar-controls { position: sticky; top: -8px; z-index: 6; padding-top: 2px; background: #fff; }
+.sidebar-bulk-action { display: flex; justify-content: flex-end; padding: .15rem .5rem .35rem; }
+.sidebar-validate-all { display: inline-flex; align-items: center; gap: .35rem; padding: .27rem .55rem; font-size: .72rem; font-weight: 750; white-space: nowrap; }
 .sidebar-validate-fiche { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; color: var(--green); background: #fff; border: 1px solid #9bcdaa; border-radius: 7px; font-size: .8rem; font-weight: 850; transition: background .12s ease, color .12s ease, transform .12s ease; }
 .sidebar-validate-fiche:hover, .sidebar-validate-fiche:focus-visible { color: #fff; background: var(--green); outline: 2px solid rgba(22,128,58,.2); transform: translateY(-1px); }
 .sidebar-validate-fiche:disabled { color: #fff; background: var(--green); border-color: var(--green); opacity: 1; transform: none; cursor: default; }

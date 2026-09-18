@@ -1,6 +1,7 @@
 import json
 
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
+from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.extensions import db
@@ -10,6 +11,7 @@ from app.services.dsf_service import (
     recompute_dsf_progress,
     reopen_fiche,
     update_value,
+    validate_all_fiches,
     validate_fiche,
 )
 from app.services.auth_service import accessible_dsf_or_404, can_access_dsf, current_user
@@ -173,6 +175,99 @@ def api_validate_fiche(dsf_id, fiche_code):
     except ValueError as exc:
         return jsonify(ok=False, error=str(exc)), 409
     return jsonify(ok=True, status="verified", progress=dsf.progress_percent, dsf_status=dsf.status)
+
+
+def _bulk_validation_anomalies(dsf_id, pending_fiches):
+    fiche_names = {fiche.fiche_code: fiche.fiche_name for fiche in pending_fiches}
+    pending_codes = set(fiche_names)
+    automatic_issues = [
+        issue
+        for issue in run_validation_rules(dsf_id)
+        if pending_codes.intersection(issue["fiche_codes"])
+    ]
+    manual_counts = dict(
+        db.session.query(ImportColumn.fiche_code, func.count(DSFValue.id))
+        .join(DSFValue, DSFValue.import_column_id == ImportColumn.id)
+        .filter(
+            DSFValue.dsf_id == dsf_id,
+            ImportColumn.fiche_code.in_(pending_codes),
+            DSFValue.status == "anomaly",
+        )
+        .group_by(ImportColumn.fiche_code)
+        .all()
+    ) if pending_codes else {}
+
+    messages = []
+    for issue in automatic_issues:
+        names = [fiche_names[code] for code in issue["fiche_codes"] if code in fiche_names]
+        messages.append(f"{' / '.join(names)} : {issue['message']}")
+    for fiche_code, count in manual_counts.items():
+        messages.append(
+            f"{fiche_names.get(fiche_code, fiche_code)} : {count} cellule(s) marquée(s) comme anomalie."
+        )
+
+    details_by_fiche = {}
+    for fiche in pending_fiches:
+        fiche_issues = [
+            issue["message"]
+            for issue in automatic_issues
+            if fiche.fiche_code in issue["fiche_codes"]
+        ]
+        manual_count = manual_counts.get(fiche.fiche_code, 0)
+        if fiche_issues or manual_count:
+            details_by_fiche[fiche.fiche_code] = json.dumps(
+                {
+                    "automatic_issues": fiche_issues,
+                    "manual_anomaly_count": manual_count,
+                    "bulk_validation": True,
+                },
+                ensure_ascii=False,
+            )
+    return len(automatic_issues) + sum(manual_counts.values()), messages, details_by_fiche
+
+
+@dsf_bp.post("/api/<int:dsf_id>/fiches/validate-all")
+def api_validate_all_fiches(dsf_id):
+    dsf = accessible_dsf_or_404(dsf_id)
+    payload = request.get_json(silent=True) or {}
+    pending_fiches = (
+        FicheStatus.query.filter(
+            FicheStatus.dsf_id == dsf.id,
+            ~FicheStatus.status.in_({"verified", "not_provided"}),
+        )
+        .order_by(FicheStatus.position)
+        .all()
+    )
+    anomaly_count, messages, details_by_fiche = _bulk_validation_anomalies(
+        dsf.id,
+        pending_fiches,
+    )
+    acknowledge = payload.get("acknowledge_anomalies") is True
+    if anomaly_count and not acknowledge:
+        return (
+            jsonify(
+                ok=False,
+                requires_confirmation=True,
+                error="Certaines fiches contiennent des anomalies. Examinez-les avant de confirmer la validation globale.",
+                anomaly_count=anomaly_count,
+                issues=messages,
+            ),
+            409,
+        )
+    try:
+        validated_count = validate_all_fiches(
+            dsf,
+            _operator(payload),
+            details_by_fiche if acknowledge else {},
+        )
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 409
+    return jsonify(
+        ok=True,
+        validated_count=validated_count,
+        progress=dsf.progress_percent,
+        dsf_status=dsf.status,
+    )
 
 
 @dsf_bp.post("/api/<int:dsf_id>/fiches/<fiche_code>/not-provided")

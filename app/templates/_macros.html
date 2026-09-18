@@ -35,3 +35,18 @@
   </button>
 </div>
 {%- endmacro %}
+
+{% macro validate_all_fiches_button(dsf, completed, total) -%}
+{% set all_completed = total > 0 and completed == total %}
+<button
+  type="button"
+  class="btn btn-sm btn-outline-success sidebar-validate-all"
+  data-dsf-id="{{ dsf.id }}"
+  title="{{ 'Toutes les fiches sont déjà traitées' if all_completed else 'Valider toutes les fiches encore ouvertes' }}"
+  aria-label="{{ 'Toutes les fiches sont déjà traitées' if all_completed else 'Valider toutes les fiches' }}"
+  {% if all_completed %}disabled{% endif %}
+>
+  <span aria-hidden="true">✓✓</span>
+  <span>{{ 'Tout validé' if all_completed else 'Tout valider' }}</span>
+</button>
+{%- endmacro %}

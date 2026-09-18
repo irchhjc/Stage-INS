@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% from '_macros.html' import fiche_link, status_badge %}
+{% from '_macros.html' import fiche_link, status_badge, validate_all_fiches_button %}
 {% block title %}{{ dsf.niu or 'DSF' }} — Contrôle DSF{% endblock %}
 {% block content %}
 <div class="dsf-header card panel-card mb-4">
@@ -13,7 +13,7 @@
 </div>
 
 <div class="row g-4">
-  <aside class="col-xl-3"><div class="fiche-sidebar card panel-card"><div class="card-body p-2">{% for item in fiche_statuses %}{{ fiche_link(dsf, item, issue_codes) }}{% endfor %}</div></div></aside>
+  <aside class="col-xl-3"><div class="fiche-sidebar card panel-card"><div class="card-body p-2"><div class="sidebar-bulk-action">{{ validate_all_fiches_button(dsf, completed, total) }}</div><hr class="my-2">{% for item in fiche_statuses %}{{ fiche_link(dsf, item, issue_codes) }}{% endfor %}</div></div></aside>
   <section class="col-xl-9">
     {% if issues %}<div class="alert alert-warning"><strong>{{ issues|length }} contrôle(s) automatique(s) à examiner.</strong> Ces alertes ne modifient aucune valeur.</div>{% endif %}
     <div class="card panel-card"><div class="card-body p-4 p-lg-5"><h2 class="h4">Commencer le contrôle</h2><p class="text-secondary">Ouvrez une fiche dans le menu. Une fiche ne devient verte qu'après validation explicite.</p><a class="btn btn-primary" href="{{ url_for('dsf.fiche_detail', dsf_id=dsf.id, fiche_code=fiche_statuses[0].fiche_code) }}">Ouvrir {{ fiche_statuses[0].fiche_name }}</a></div></div>

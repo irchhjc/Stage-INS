@@ -31,14 +31,19 @@
   }
 
   async function apiFetch(url, options = {}) {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRF-Token": csrfToken,
-        ...(options.headers || {}),
-      },
-    });
+    let response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": csrfToken,
+          ...(options.headers || {}),
+        },
+      });
+    } catch (error) {
+      throw new Error("Connexion au serveur interrompue. L'enregistrement n'est pas confirmé. Conservez vos saisies et vérifiez leur état avant de réessayer.");
+    }
     const payload = await response.json().catch(() => ({ ok: false, error: "Réponse serveur invalide." }));
     if (response.status === 401) {
       if (!window.__sessionRedirectInProgress) {
@@ -343,6 +348,50 @@
   document.querySelectorAll(".sidebar-validate-fiche:not(:disabled)").forEach(button => {
     button.addEventListener("click", () => {
       validateSidebarFiche(button).catch(error => showToast(error.message, true));
+    });
+  });
+
+  async function validateAllFiches(button) {
+    const dsfId = button.dataset.dsfId;
+    const originalHtml = button.innerHTML;
+    const submit = acknowledgeAnomalies => apiFetch(
+      `/dsf/api/${dsfId}/fiches/validate-all`,
+      {
+        method: "POST",
+        body: JSON.stringify({ acknowledge_anomalies: acknowledgeAnomalies }),
+      }
+    );
+    button.disabled = true;
+    button.textContent = "Validation…";
+    try {
+      await submit(false);
+      window.location.assign(`/dsf/${dsfId}`);
+    } catch (error) {
+      if (error.payload?.requires_confirmation) {
+        const issues = (error.payload.issues || []).slice(0, 5);
+        const details = issues.length ? `\n\n${issues.map(issue => `• ${issue}`).join("\n")}` : "";
+        const remainingIssues = Math.max(0, (error.payload.anomaly_count || 0) - issues.length);
+        const more = remainingIssues ? `\n• ... et ${remainingIssues} autre(s) anomalie(s)` : "";
+        const confirmed = window.confirm(
+          `${error.payload.anomaly_count || "Une ou plusieurs"} anomalie(s) ont été détectées.${details}${more}\n\n` +
+          "Avez-vous examiné ces anomalies et souhaitez-vous valider toutes les fiches malgré tout ? " +
+          "Les anomalies resteront signalées et cette décision sera inscrite dans l'historique."
+        );
+        if (!confirmed) return;
+        await submit(true);
+        window.location.assign(`/dsf/${dsfId}`);
+        return;
+      }
+      showToast(error.message, true);
+    } finally {
+      button.disabled = false;
+      button.innerHTML = originalHtml;
+    }
+  }
+
+  document.querySelectorAll(".sidebar-validate-all:not(:disabled)").forEach(button => {
+    button.addEventListener("click", () => {
+      validateAllFiches(button).catch(error => showToast(error.message, true));
     });
   });
 

@@ -41,7 +41,7 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = (
         {"connect_args": {"timeout": 60, "check_same_thread": False}, "pool_pre_ping": True}
         if _DATABASE_URL.startswith("sqlite")
-        else {"pool_pre_ping": True}
+        else {"pool_pre_ping": True, "connect_args": {"connect_timeout": 5}}
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = _session_lifetime()

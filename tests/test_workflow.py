@@ -1,12 +1,14 @@
 import io
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from zipfile import ZipFile
 
 from openpyxl import load_workbook
 from sqlalchemy import text
 
+from conftest import build_test_workbook
 from app.extensions import db
-from app.models import AuditLog, DSF, DSFValue, FicheStatus, ImportColumn, User
+from app.models import AuditLog, DSF, DSFValue, FicheStatus, ImportColumn, ImportSession, User
 from app.services.dsf_service import FINAL_FICHE_STATUSES, mark_fiche_not_provided
 
 
@@ -151,7 +153,54 @@ def test_sidebar_has_one_validate_button_per_fiche(client, imported_session):
     assert html.count('class="sidebar-validate-fiche') == len(dsf.fiche_statuses)
     assert 'data-fiche-code="IDENT"' in html
     assert "Valider la fiche Identification et passer à la suivante" in html
-    assert "Valider toutes les fiches" not in html
+    assert "Valider toutes les fiches" in html
+    assert "Tout valider" in html
+    overview_html = client.get(f"/dsf/{dsf.id}").get_data(as_text=True)
+    assert "Valider toutes les fiches" in overview_html
+
+
+def test_validate_all_fiches_and_require_confirmation_only_for_anomalies(client, imported_session):
+    first, second = DSF.query.order_by(DSF.id).all()
+    total_fiches = FicheStatus.query.filter_by(dsf_id=first.id).count()
+    preserved_fiche = FicheStatus.query.filter_by(dsf_id=first.id, fiche_code="NOTE_16B").one()
+    mark_fiche_not_provided(first, preserved_fiche.fiche_code, "Testeur")
+
+    validated = client.post(f"/dsf/api/{first.id}/fiches/validate-all", json={})
+    assert validated.status_code == 200
+    assert validated.get_json()["validated_count"] == total_fiches - 1
+    assert validated.get_json()["dsf_status"] == "completed"
+    assert FicheStatus.query.filter_by(dsf_id=first.id, status="verified").count() == total_fiches - 1
+    db.session.refresh(preserved_fiche)
+    assert preserved_fiche.status == "not_provided"
+
+    anomaly_value = (
+        DSFValue.query.join(ImportColumn)
+        .filter(
+            DSFValue.dsf_id == second.id,
+            ImportColumn.variable_name == "IMMOBILISATIONS INCORPORELLES (NET_N)",
+        )
+        .one()
+    )
+    client.patch(
+        f"/dsf/api/values/{anomaly_value.id}",
+        json={"value": "101", "status": "anomaly"},
+    )
+    blocked = client.post(f"/dsf/api/{second.id}/fiches/validate-all", json={})
+    assert blocked.status_code == 409
+    assert blocked.get_json()["requires_confirmation"] is True
+    assert blocked.get_json()["anomaly_count"] >= 1
+    assert FicheStatus.query.filter_by(dsf_id=second.id, status="verified").count() == 0
+
+    confirmed = client.post(
+        f"/dsf/api/{second.id}/fiches/validate-all",
+        json={"acknowledge_anomalies": True},
+    )
+    assert confirmed.status_code == 200
+    assert confirmed.get_json()["validated_count"] == total_fiches
+    assert confirmed.get_json()["dsf_status"] == "completed"
+    assert FicheStatus.query.filter_by(dsf_id=second.id, status="verified").count() == total_fiches
+    db.session.refresh(anomaly_value)
+    assert anomaly_value.status == "anomaly"
 
 
 def test_export_contains_only_fully_controlled_dsfs(client, imported_session):
@@ -181,6 +230,57 @@ def test_export_contains_only_fully_controlled_dsfs(client, imported_session):
     assert exported_numbers == [first.numero_dsf]
     assert second.numero_dsf not in exported_numbers
     workbook.close()
+
+
+def test_admin_global_export_includes_all_workbooks_and_controllers(client, imported_session):
+    admin = User.query.filter_by(role="admin").one()
+    controller_one = User(username="controleur.un", role="controller")
+    controller_one.set_password("motdepasse10")
+    controller_two = User(username="controleur.deux", role="controller")
+    controller_two.set_password("motdepasse20")
+    db.session.add_all([controller_one, controller_two])
+    db.session.flush()
+
+    first_dsf = DSF.query.filter_by(import_session_id=imported_session.id).order_by(DSF.id).first()
+    first_dsf.assignee = controller_one
+    first_dsf.assigned_by = admin
+    complete_dsf(first_dsf)
+
+    second_import = client.post(
+        "/import/",
+        data={"file": (build_test_workbook(), "deuxieme_classeur.xlsx")},
+        content_type="multipart/form-data",
+        follow_redirects=False,
+    )
+    assert second_import.status_code == 302
+    second_session = ImportSession.query.order_by(ImportSession.id.desc()).first()
+    second_dsf = DSF.query.filter_by(import_session_id=second_session.id).order_by(DSF.id).first()
+    second_dsf.assignee = controller_two
+    second_dsf.assigned_by = admin
+    complete_dsf(second_dsf)
+
+    exported = client.post("/export/all-completed")
+    assert exported.status_code == 200
+    assert exported.mimetype == "application/zip"
+    with ZipFile(io.BytesIO(exported.data)) as archive:
+        workbook_names = sorted(name for name in archive.namelist() if name.endswith(".xlsx"))
+        assert len(workbook_names) == 2
+        assert any(name.startswith(f"classeur_{imported_session.id}_") for name in workbook_names)
+        assert any(name.startswith(f"classeur_{second_session.id}_") for name in workbook_names)
+        for workbook_name in workbook_names:
+            workbook = load_workbook(io.BytesIO(archive.read(workbook_name)), data_only=False)
+            worksheet = workbook["DONNEES"]
+            assert worksheet.max_row == 2
+            assert worksheet.cell(2, 1).value == "DSF-001"
+            assert "JOURNAL_CONTROLE" in workbook.sheetnames
+            workbook.close()
+
+    client.post("/auth/logout")
+    client.post(
+        "/auth/login",
+        data={"username": "controleur.un", "password": "motdepasse10"},
+    )
+    assert client.post("/export/all-completed").status_code == 403
 
 
 def test_invalid_workbook_is_rejected_without_crash(client, app):

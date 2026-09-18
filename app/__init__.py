@@ -3,6 +3,8 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, request, send_from_directory, session, url_for
 
+from sqlalchemy.exc import OperationalError, TimeoutError as PoolTimeoutError
+
 from app.extensions import db
 from config import Config
 
@@ -33,6 +35,10 @@ def create_app(config_object=Config):
 
     @app.before_request
     def load_and_require_user():
+        g.current_user = None
+        if request.endpoint in {"static", "brand_asset"}:
+            return None
+
         from app.models import User
 
         user_id = session.get("user_id")
@@ -50,6 +56,39 @@ def create_app(config_object=Config):
                 flash("Votre session n'est plus active. Reconnectez-vous avant de poursuivre.", "warning")
             return_path = "/admin/" if request.path.startswith("/admin/") else "/"
             return redirect(url_for("auth.login", next=return_path))
+
+    @app.errorhandler(OperationalError)
+    @app.errorhandler(PoolTimeoutError)
+    def database_unavailable(error):
+        # Do not replay writes: their outcome may be unknown after a disconnect.
+        original = getattr(error, "orig", None)
+        # Keep diagnostic codes, without logging SQL values or credentials.
+        windows_code = 10013 if "10013" in str(original) else None
+        app.logger.error(
+            "Database request failed: type=%s sqlstate=%s windows_code=%s path=%s",
+            type(error).__name__, getattr(original, "sqlstate", None),
+            windows_code, request.path,
+        )
+        try:
+            db.session.remove()
+        except Exception:
+            app.logger.error("Database session cleanup failed")
+        message = (
+            "Connexion à la base de données indisponible. "
+            "L'enregistrement de votre dernière action n'est pas confirmé. "
+            "Conservez vos saisies et vérifiez leur état avant de réessayer."
+        )
+        headers = {"Cache-Control": "no-store"}
+        if request.path.startswith("/dsf/api/"):
+            return jsonify(ok=False, error=message, code="database_unavailable"), 503, headers
+        return (
+            '<!doctype html><html lang="fr"><meta charset="utf-8">'
+            '<meta name="viewport" content="width=device-width, initial-scale=1">'
+            '<title>Connexion indisponible</title><main>'
+            '<h1>Connexion temporairement indisponible</h1>'
+            f'<p>{message}</p><p>Réessayez dans quelques instants.</p></main></html>',
+            503, headers,
+        )
 
     @app.before_request
     def protect_state_changes():

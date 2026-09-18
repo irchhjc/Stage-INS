@@ -97,7 +97,15 @@ def update_value(dsf_value, raw_value, status, operator, comment=None):
     return changed_now
 
 
-def validate_fiche(dsf, fiche_code, operator, allow_anomalies=False, anomaly_details=None):
+def validate_fiche(
+    dsf,
+    fiche_code,
+    operator,
+    allow_anomalies=False,
+    anomaly_details=None,
+    commit=True,
+    recompute=True,
+):
     operator = clean_operator(operator)
     fiche = FicheStatus.query.filter_by(dsf_id=dsf.id, fiche_code=fiche_code).one()
     values = (
@@ -128,8 +136,39 @@ def validate_fiche(dsf, fiche_code, operator, allow_anomalies=False, anomaly_det
             new_value=anomaly_details if allow_anomalies else None,
         )
     )
-    recompute_dsf_progress(dsf)
-    db.session.commit()
+    if recompute:
+        recompute_dsf_progress(dsf)
+    if commit:
+        db.session.commit()
+
+
+def validate_all_fiches(dsf, operator, anomaly_details_by_fiche=None):
+    anomaly_details_by_fiche = anomaly_details_by_fiche or {}
+    pending_fiches = (
+        FicheStatus.query.filter(
+            FicheStatus.dsf_id == dsf.id,
+            ~FicheStatus.status.in_(FINAL_FICHE_STATUSES),
+        )
+        .order_by(FicheStatus.position)
+        .all()
+    )
+    try:
+        for fiche in pending_fiches:
+            validate_fiche(
+                dsf,
+                fiche.fiche_code,
+                operator,
+                allow_anomalies=fiche.fiche_code in anomaly_details_by_fiche,
+                anomaly_details=anomaly_details_by_fiche.get(fiche.fiche_code),
+                commit=False,
+                recompute=False,
+            )
+        recompute_dsf_progress(dsf)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return len(pending_fiches)
 
 
 def mark_fiche_not_provided(dsf, fiche_code, operator):
