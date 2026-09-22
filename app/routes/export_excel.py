@@ -17,7 +17,7 @@ def export_all_completed():
             workbook_count,
             dsf_count,
         )
-        return send_file(path, as_attachment=True, download_name=path.name)
+        return send_file(path, as_attachment=True, download_name=path.name, mimetype="application/zip")
     except (ValueError, FileNotFoundError) as exc:
         flash(f"Export global impossible : {exc}", "warning")
         return redirect(request.referrer or url_for("admin.dashboard"))

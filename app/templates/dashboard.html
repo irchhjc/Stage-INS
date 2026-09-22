@@ -8,14 +8,25 @@
     <h1>Tableau de bord</h1>
     {% if active_session %}<p class="text-secondary mb-0">{{ active_session.filename }} · {{ active_session.row_count }} DSF · {{ active_session.column_count }} variables</p>{% endif %}
   </div>
-  {% if active_session %}
-  <form method="post" action="{{ url_for('export_excel.export_workbook', import_session_id=active_session.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button class="btn btn-success" {{ 'disabled' if stats.completed == 0 else '' }} title="{{ 'Aucune DSF terminée à exporter' if stats.completed == 0 else 'Exporter uniquement les DSF entièrement contrôlées' }}">
-      {{ 'Exporter toutes les DSF terminées' if current_user.is_admin else 'Exporter mes DSF terminées' }} ({{ stats.completed }})
-    </button>
-  </form>
-  {% endif %}
+  <div class="d-flex gap-2 flex-wrap justify-content-end">
+    {% if current_user.is_admin %}
+    <form method="post" action="{{ url_for('export_excel.export_all_completed') }}" id="globalCompletedExportForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button id="globalCompletedExportButton" class="btn btn-success" type="submit" {{ 'disabled' if completed_all == 0 else '' }}>
+        Exporter toutes les DSF terminées ({{ completed_all }})
+      </button>
+      <small class="d-block text-secondary mt-1">Tous les classeurs et contrôleurs · archive ZIP</small>
+    </form>
+    {% endif %}
+    {% if active_session %}
+    <form method="post" action="{{ url_for('export_excel.export_workbook', import_session_id=active_session.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn {{ 'btn-outline-success' if current_user.is_admin else 'btn-success' }}" type="submit" {{ 'disabled' if stats.completed == 0 else '' }}>
+        {{ 'Exporter les terminées de ce classeur' if current_user.is_admin else 'Exporter mes DSF terminées' }} ({{ stats.completed }})
+      </button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 
 {% if not active_session %}

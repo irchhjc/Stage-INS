@@ -259,6 +259,12 @@ def test_admin_global_export_includes_all_workbooks_and_controllers(client, impo
     second_dsf.assigned_by = admin
     complete_dsf(second_dsf)
 
+    dashboard = client.get(f"/?session_id={imported_session.id}&q=aucun_resultat&status=not_started").get_data(as_text=True)
+    assert 'id="globalCompletedExportForm"' in dashboard
+    assert 'action="/export/all-completed"' in dashboard
+    assert "Exporter toutes les DSF terminées (2)" in dashboard
+    assert "Exporter les terminées de ce classeur (1)" in dashboard
+
     exported = client.post("/export/all-completed")
     assert exported.status_code == 200
     assert exported.mimetype == "application/zip"
@@ -280,6 +286,7 @@ def test_admin_global_export_includes_all_workbooks_and_controllers(client, impo
         "/auth/login",
         data={"username": "controleur.un", "password": "motdepasse10"},
     )
+    assert 'id="globalCompletedExportForm"' not in client.get("/").get_data(as_text=True)
     assert client.post("/export/all-completed").status_code == 403
 
 
@@ -452,3 +459,12 @@ def test_admin_creates_assigns_and_restricts_controller_access(client, imported_
     assert worksheet.max_row == imported_session.header_row + 1
     assert "JOURNAL_CONTROLE" in workbook.sheetnames
     workbook.close()
+
+
+def test_global_dashboard_export_disabled_when_empty(client):
+    import re
+    html = client.get("/").get_data(as_text=True)
+    button = re.search(r'<button id="globalCompletedExportButton"[^>]*>', html)
+    assert button and "disabled" in button.group(0)
+    assert "Exporter toutes les DSF terminées (0)" in html
+    assert client.post("/export/all-completed").status_code == 302

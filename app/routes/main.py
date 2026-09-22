@@ -41,6 +41,7 @@ def dashboard():
     stats = dashboard_stats(active_session.id if active_session else None, assigned_to_id) if active_session else dashboard_stats(-1, assigned_to_id)
     return render_template(
         "dashboard.html",
+        completed_all=DSF.query.filter_by(status="completed").count() if user.is_admin else 0,
         sessions=sessions,
         active_session=active_session,
         dsfs=dsfs,
