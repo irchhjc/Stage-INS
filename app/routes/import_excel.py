@@ -1,7 +1,7 @@
 from pathlib import Path
 from threading import Lock
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from sqlalchemy.exc import OperationalError
 
 from app.extensions import db
@@ -9,6 +9,7 @@ from app.services.excel_service import (
     ExcelImportError,
     copy_local_workbook,
     import_workbook,
+    list_workbook_sheets,
     save_uploaded_file,
 )
 from app.services.auth_service import admin_required
@@ -22,11 +23,11 @@ def _is_xlsx(filename):
     return bool(filename) and Path(filename).suffix.casefold() == ".xlsx"
 
 
-def _import_safely(filepath, filename):
+def _import_safely(filepath, filename, sheet_name=None):
     if not import_lock.acquire(blocking=False):
         raise RuntimeError("Un autre import est déjà en cours. Attendez sa fin avant de recommencer.")
     try:
-        return import_workbook(filepath, filename)
+        return import_workbook(filepath, filename, sheet_name=sheet_name)
     finally:
         import_lock.release()
 
@@ -70,7 +71,7 @@ def import_page():
         saved_path = None
         try:
             saved_path = save_uploaded_file(upload)
-            import_session = _import_safely(saved_path, upload.filename)
+            import_session = _import_safely(saved_path, upload.filename, request.form.get("sheet_name") or None)
             flash(
                 f"Import terminé : {import_session.row_count} DSF et {import_session.column_count} colonnes.",
                 "success",
@@ -84,7 +85,16 @@ def import_page():
             _cleanup_failed_copy(saved_path)
             _handle_import_failure(exc, "Échec de l'import")
         return redirect(url_for("import_excel.import_page"))
-    return render_template("import.html", local_workbook=local_workbook if local_workbook.exists() else None)
+    local_sheets = []
+    if local_workbook.exists():
+        try:
+            local_sheets = list_workbook_sheets(local_workbook)
+        except ExcelImportError as exc:
+            flash(str(exc), "warning")
+    return render_template(
+        "import.html", local_workbook=local_workbook if local_workbook.exists() else None,
+        local_sheets=local_sheets,
+    )
 
 
 @import_bp.post("/local")
@@ -97,7 +107,7 @@ def import_local():
     copied = None
     try:
         copied = copy_local_workbook(local_workbook)
-        import_session = _import_safely(copied, local_workbook.name)
+        import_session = _import_safely(copied, local_workbook.name, request.form.get("sheet_name") or None)
         flash(
             f"Import terminé : {import_session.row_count} DSF et {import_session.column_count} colonnes.",
             "success",
@@ -107,3 +117,18 @@ def import_local():
         _cleanup_failed_copy(copied)
         _handle_import_failure(exc, "Échec de l'import local")
         return redirect(url_for("import_excel.import_page"))
+
+
+@import_bp.post("/sheets")
+@admin_required
+def preview_sheets():
+    upload = request.files.get("file")
+    if not upload or not _is_xlsx(upload.filename):
+        return jsonify(ok=False, error="Sélectionnez un fichier .xlsx."), 400
+    try:
+        names = list_workbook_sheets(upload.stream)
+        if not names:
+            raise ExcelImportError("Ce classeur ne contient aucune feuille de calcul.")
+        return jsonify(ok=True, sheets=names)
+    except ExcelImportError as exc:
+        return jsonify(ok=False, error=str(exc)), 400

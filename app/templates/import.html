@@ -14,15 +14,23 @@
     <div class="card panel-card h-100">
       <div class="card-body p-4 p-lg-5">
         <h2 class="h4">Importer un fichier .xlsx</h2>
-        <p class="text-secondary">La feuille et la ligne d'en-tête sont détectées uniquement lorsqu'une seule structure contenant la colonne exacte <code>NIU</code> est trouvée.</p>
-        <form method="post" enctype="multipart/form-data" class="mt-4">
+        <p class="text-secondary">Choisissez le classeur, puis la feuille à importer. La ligne d'en-tête contenant la colonne exacte <code>NIU</code> sera détectée dans cette feuille.</p>
+        <form id="sheetImportForm" method="post" enctype="multipart/form-data" class="mt-4">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <div class="upload-zone">
             <label for="file" class="form-label fw-semibold">Classeur Excel</label>
             <input class="form-control form-control-lg" type="file" id="file" name="file" accept=".xlsx" required>
             <div class="form-text">Format accepté : .xlsx — taille maximale : 50 Mo.</div>
           </div>
-          <button class="btn btn-primary btn-lg mt-4" type="submit">Analyser et importer</button>
+          <div class="mt-3">
+            <label for="sheetName" class="form-label fw-semibold">Feuille à importer</label>
+            <select id="sheetName" name="sheet_name" class="form-select" required disabled>
+              <option value="">Choisissez d'abord un classeur</option>
+            </select>
+            <p id="sheetPreviewMessage" class="form-text" role="status" aria-live="polite"></p>
+          </div>
+          <button id="importSelectedSheet" class="btn btn-primary btn-lg mt-4" type="submit" disabled>Importer la feuille sélectionnée</button>
+          <noscript><p class="text-danger mt-2">Activez JavaScript pour choisir la feuille du fichier envoyé.</p></noscript>
         </form>
       </div>
     </div>
@@ -44,7 +52,12 @@
         <p class="small text-secondary text-break">{{ local_workbook }}</p>
         <form method="post" action="{{ url_for('import_excel.import_local') }}">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button class="btn btn-outline-primary" type="submit">Importer dsf.xlsx</button>
+          <label for="localSheetName" class="form-label">Feuille de dsf.xlsx</label>
+          <select id="localSheetName" name="sheet_name" class="form-select mb-3" required>
+            <option value="" selected disabled>Choisir une feuille</option>
+            {% for name in local_sheets %}<option value="{{ name }}">{{ name }}</option>{% endfor %}
+          </select>
+          <button class="btn btn-outline-primary" type="submit" {{ 'disabled' if not local_sheets else '' }}>Importer cette feuille de dsf.xlsx</button>
         </form>
         {% endif %}
       </div>
@@ -53,3 +66,7 @@
 </div>
 {% endblock %}
 
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/import_sheets.js') }}"></script>
+{% endblock %}

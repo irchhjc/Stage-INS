@@ -29,9 +29,20 @@ class ExcelImportError(ValueError):
     pass
 
 
-def _sheet_candidates(workbook):
+def list_workbook_sheets(source):
+    try:
+        workbook = load_workbook(source, read_only=True, data_only=False)
+    except Exception as exc:
+        raise ExcelImportError("Le fichier n'est pas un classeur .xlsx lisible.") from exc
+    try:
+        return [worksheet.title for worksheet in workbook.worksheets]
+    finally:
+        workbook.close()
+
+
+def _sheet_candidates(workbook, worksheets=None):
     candidates = []
-    for worksheet in workbook.worksheets:
+    for worksheet in (workbook.worksheets if worksheets is None else worksheets):
         for row_index, values in enumerate(
             worksheet.iter_rows(min_row=1, max_row=min(worksheet.max_row, 20), values_only=True),
             start=1,
@@ -52,7 +63,16 @@ def inspect_workbook(filepath, sheet_name=None, header_row=None):
             if sheet_name not in workbook.sheetnames:
                 raise ExcelImportError(f"La feuille « {sheet_name} » n'existe pas.")
             worksheet = workbook[sheet_name]
-            selected_header_row = int(header_row or 1)
+            if header_row is not None:
+                selected_header_row = int(header_row)
+            else:
+                candidates = _sheet_candidates(workbook, [worksheet])
+                if len(candidates) != 1:
+                    raise ExcelImportError(
+                        "La feuille sélectionnée doit contenir une seule ligne d'en-tête "
+                        "avec la colonne exacte NIU dans ses 20 premières lignes."
+                    )
+                selected_header_row = candidates[0][1]
         else:
             candidates = _sheet_candidates(workbook)
             unique_candidates = list(dict.fromkeys(candidates))
