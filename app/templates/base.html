@@ -53,6 +53,7 @@
             <a class="nav-link" href="{{ url_for('main.history') }}">Historique</a>
             {% if current_user.is_admin %}
             <a class="nav-link" href="{{ url_for('admin.dashboard') }}">Administration</a>
+            <a class="nav-link" href="{{ url_for('admin.global_search') }}">Recherche globale</a>
             <a class="btn btn-sm btn-light ms-lg-2" href="{{ url_for('import_excel.import_page') }}">Importer</a>
             {% endif %}
             <span class="user-identity ms-lg-2"><strong>{{ current_user.username }}</strong><small>{{ 'Administrateur' if current_user.is_admin else 'Contrôleur' }}</small></span>

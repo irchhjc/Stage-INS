@@ -1,10 +1,13 @@
 from datetime import datetime, timezone
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from sqlalchemy import update, or_
+from sqlalchemy.orm import joinedload
+
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
-from app.services.admin_dashboard_service import build_admin_performance
+from app.services.admin_dashboard_service import build_admin_performance, build_controller_daily_stats
 from app.services.auth_service import admin_required, create_user, current_user
 from app.services.dsf_service import search_dsfs
 
@@ -17,6 +20,7 @@ def _controller_progress(controllers):
     for controller in controllers:
         assigned = DSF.query.filter_by(assigned_to_id=controller.id)
         total = assigned.count()
+        not_started = assigned.filter_by(status="not_started").count()
         completed = assigned.filter_by(status="completed").count()
         in_progress = assigned.filter_by(status="in_progress").count()
         anomalies = assigned.filter(DSF.anomaly_count > 0).count()
@@ -25,6 +29,7 @@ def _controller_progress(controllers):
             {
                 "user": controller,
                 "total": total,
+                "not_started": not_started,
                 "completed": completed,
                 "in_progress": in_progress,
                 "anomalies": anomalies,
@@ -53,10 +58,16 @@ def dashboard():
     except ValueError as exc:
         flash(str(exc), "warning")
         performance = build_admin_performance()
+    controller_daily = build_controller_daily_stats(
+        performance["date_from"],
+        performance["date_to"],
+        controllers,
+    )
     return render_template(
         "admin/dashboard.html",
         controllers=controllers,
         controller_progress=_controller_progress(controllers),
+        controller_daily=controller_daily,
         sessions=sessions,
         active_session=active_session,
         dsfs=dsfs,
@@ -148,3 +159,78 @@ def assign_all_dsfs(import_session_id):
     else:
         flash("Toutes les DSF de ce classeur étaient déjà affectées. Aucune modification effectuée.", "warning")
     return redirect(url_for("admin.dashboard", session_id=import_session.id))
+
+
+@admin_bp.post("/controllers/<int:controller_id>/unassign-not-started")
+@admin_required
+def unassign_not_started(controller_id):
+    controller = db.get_or_404(User, controller_id)
+    if controller.role != "controller":
+        abort(400)
+    operator = current_user().username
+    try:
+        # The status/owner conditions are checked by the UPDATE itself, not
+        # from the potentially stale count displayed in the browser.
+        removed_ids = db.session.execute(
+            update(DSF)
+            .where(DSF.assigned_to_id == controller.id, DSF.status == "not_started")
+            .values(assigned_to_id=None, assigned_by_id=None, assigned_at=None)
+            .returning(DSF.id)
+        ).scalars().all()
+        for dsf_id in removed_ids:
+            db.session.add(AuditLog(
+                dsf_id=dsf_id,
+                action="retrait affectation DSF non commencée",
+                old_value=controller.username,
+                new_value="Non assignée",
+                operator=operator,
+            ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    if removed_ids:
+        flash(
+            f"{len(removed_ids)} DSF non commencée(s) retirée(s) à {controller.username}. "
+            "Elles peuvent être réaffectées. Les DSF en cours et terminées sont conservées.",
+            "success",
+        )
+    else:
+        flash(f"Aucune DSF non commencée à retirer à {controller.username}.", "info")
+    return redirect(url_for("admin.dashboard"))
+
+
+@admin_bp.get("/search")
+@admin_required
+def global_search():
+    term = request.args.get("q", "").strip()
+    assignment = request.args.get("assignment", "all")
+    if assignment not in {"all", "assigned", "unassigned"}:
+        assignment = "all"
+    page = max(1, request.args.get("page", 1, type=int))
+    query = DSF.query.join(ImportSession).options(
+        joinedload(DSF.assignee), joinedload(DSF.import_session),
+    )
+    if term:
+        # Treat user-entered SQL wildcard characters as literal text.
+        escaped = term.replace("!", "!!").replace("%", "!%").replace("_", "!_")
+        pattern = f"%{escaped}%"
+        query = query.filter(or_(
+            DSF.niu.ilike(pattern, escape="!"),
+            DSF.numero_dsf.ilike(pattern, escape="!"),
+            DSF.raison_sociale.ilike(pattern, escape="!"),
+            DSF.sigle.ilike(pattern, escape="!"),
+            ImportSession.filename.ilike(pattern, escape="!"),
+            DSF.assignee.has(User.username.ilike(pattern, escape="!")),
+        ))
+    if assignment == "assigned":
+        query = query.filter(DSF.assigned_to_id.is_not(None))
+    elif assignment == "unassigned":
+        query = query.filter(DSF.assigned_to_id.is_(None))
+    pagination = query.order_by(DSF.raison_sociale, DSF.id).paginate(
+        page=page, per_page=50, error_out=False,
+    )
+    return render_template(
+        "admin/global_search.html", pagination=pagination,
+        term=term, assignment=assignment,
+    )

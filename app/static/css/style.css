@@ -103,6 +103,40 @@ body {
 .assigned-lock { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .2rem .55rem; min-width: 180px; }
 .assigned-lock strong { color: var(--navy); font-size: .86rem; }
 .assigned-lock small { grid-column: 2; color: var(--gray-600); font-size: .68rem; }
+/* Controller activity heatmap */
+.heatmap-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--gray-100); border-radius: 10px; }
+.heatmap-table { border-collapse: separate; border-spacing: 3px; white-space: nowrap; font-size: .72rem; padding: 8px; }
+.heatmap-table th { padding: .22rem .28rem; color: var(--gray-600); font-weight: 700; text-align: center; font-size: .6rem; text-transform: uppercase; letter-spacing: .04em; }
+.hm-name-col { min-width: 120px; max-width: 180px; text-align: left !important; position: sticky; left: 0; z-index: 2; background: #fff; padding-right: .6rem !important; font-weight: 600; }
+.heatmap-table thead .hm-name-col { background: #fff; }
+.hm-day-col { min-width: 28px; max-width: 34px; }
+.hm-total-col { min-width: 60px; text-align: center !important; border-left: 2px solid var(--gray-100); padding: .28rem .45rem !important; font-size: .75rem; }
+.hm-cell { width: 28px; height: 28px; text-align: center; vertical-align: middle; border-radius: 5px; font-size: .65rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: default; transition: filter .1s ease; }
+.hm-cell:hover { filter: brightness(.88); }
+.hm-cell span { display: block; line-height: 28px; }
+.activity-0 { background: #edf1f5; }
+.activity-1 { background: #b8e2c8; color: #14522a; }
+.activity-2 { background: #72c490; color: #0a3318; }
+.activity-3 { background: #2d9e56; color: #fff; }
+.activity-4 { background: #16803a; color: #fff; }
+.heatmap-legend { display: flex; align-items: center; gap: .45rem; color: var(--gray-600); font-size: .68rem; flex-wrap: wrap; }
+.hm-legend-cell { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+
+/* Controller sparklines */
+.ctrl-sparklines { display: flex; flex-direction: column; gap: 1.35rem; }
+.ctrl-sparkline { display: grid; grid-template-columns: 165px 1fr; align-items: center; gap: 1rem; padding: .65rem .85rem; background: #fafcfe; border: 1px solid var(--gray-100); border-radius: 10px; }
+.ctrl-sparkline-label { display: flex; flex-direction: column; gap: .18rem; min-width: 0; }
+.ctrl-sparkline-label strong { font-size: .84rem; color: var(--navy); }
+.ctrl-sparkline-label span { font-size: .67rem; color: var(--gray-600); }
+.ctrl-sparkline-bars { display: flex; align-items: flex-end; gap: 3px; height: 56px; overflow-x: auto; padding-bottom: 2px; }
+.ctrl-bar-col { flex: 0 0 auto; width: 13px; height: 56px; display: flex; flex-direction: column; justify-content: flex-end; cursor: default; }
+.ctrl-bar-fill { width: 100%; border-radius: 2px 2px 0 0; min-height: 0; }
+.bar-level-0 { background: #e5e9ee; }
+.bar-level-1 { background: #8ed4a8; min-height: 2px; }
+.bar-level-2 { background: #4db87a; min-height: 2px; }
+.bar-level-3 { background: #2d9e56; min-height: 2px; }
+.bar-level-4 { background: #16803a; min-height: 2px; }
+
 .bulk-assignment-panel { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .85rem 1rem; border: 1px solid #b9dfc3; border-radius: 10px; background: #f0faf3; }
 .bulk-assignment-panel > div { display: flex; flex-direction: column; }
 .bulk-assignment-panel small { margin-top: .18rem; color: var(--gray-600); }
@@ -250,6 +284,8 @@ body {
   .bulk-assignment-form, .bulk-assignment-form select, .bulk-assignment-form .btn { width: 100%; }
   .performance-filter { width: 100%; align-items: stretch; flex-direction: column; }
   .performance-filter > div, .performance-filter .btn { width: 100%; }
+  .ctrl-sparkline { grid-template-columns: 1fr; gap: .5rem; }
+  .hm-name-col { min-width: 90px; }
   .trend-row { grid-template-columns: 76px minmax(100px, 1fr); gap: .45rem .7rem; }
   .trend-counts, .trend-activity { grid-column: 1 / -1; }
   .trend-activity { justify-content: flex-start; }

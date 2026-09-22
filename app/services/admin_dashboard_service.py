@@ -171,3 +171,119 @@ def build_admin_performance(date_from_raw=None, date_to_raw=None):
         },
         "daily": daily_rows,
     }
+
+
+def build_controller_daily_stats(date_from, date_to, controllers):
+    """Per-controller daily activity stats (DSFs touched, fiches closed, corrections)."""
+    if not controllers:
+        return {"rows": [], "day_labels": [], "max_dsfs_per_day": 0}
+
+    start_utc, end_utc = _utc_bounds(date_from, date_to)
+    days_asc = [date_from + timedelta(days=i) for i in range((date_to - date_from).days + 1)]
+    days_desc = list(reversed(days_asc))
+    controller_names = [c.username for c in controllers]
+
+    logs = (
+        db.session.query(
+            AuditLog.operator,
+            AuditLog.dsf_id,
+            AuditLog.action,
+            AuditLog.created_at,
+        )
+        .filter(
+            AuditLog.created_at >= start_utc,
+            AuditLog.created_at < end_utc,
+            AuditLog.action.in_(CONTROL_ACTIONS),
+            AuditLog.operator.in_(controller_names),
+        )
+        .all()
+    )
+
+    controller_by_name = {c.username: c for c in controllers}
+    raw = {
+        c.id: {day: {"dsfs": set(), "fiches": 0, "corrections": 0} for day in days_asc}
+        for c in controllers
+    }
+
+    for operator, dsf_id, action, created_at in logs:
+        if operator not in controller_by_name:
+            continue
+        ctrl = controller_by_name[operator]
+        day = _local_date(created_at)
+        if day not in raw[ctrl.id]:
+            continue
+        raw[ctrl.id][day]["dsfs"].add(dsf_id)
+        if action in FINAL_FICHE_ACTIONS:
+            raw[ctrl.id][day]["fiches"] += 1
+        if action == "correction":
+            raw[ctrl.id][day]["corrections"] += 1
+
+    max_dsfs = max(
+        (len(d["dsfs"]) for cd in raw.values() for d in cd.values()),
+        default=0,
+    )
+
+    def _level(count):
+        if count == 0 or max_dsfs == 0:
+            return 0
+        pct = count / max_dsfs * 100
+        if pct <= 25:
+            return 1
+        if pct <= 50:
+            return 2
+        if pct <= 75:
+            return 3
+        return 4
+
+    rows = []
+    for ctrl in controllers:
+        # heatmap shows newest first; sparkline chart shows oldest first
+        day_list_desc = []
+        day_list_asc = []
+        all_dsfs: set = set()
+        total_fiches = 0
+        total_corrections = 0
+
+        for day in days_desc:
+            d = raw[ctrl.id][day]
+            count = len(d["dsfs"])
+            all_dsfs.update(d["dsfs"])
+            total_fiches += d["fiches"]
+            total_corrections += d["corrections"]
+            entry = {
+                "date": day,
+                "label": day.strftime("%d/%m"),
+                "dsfs": count,
+                "fiches": d["fiches"],
+                "corrections": d["corrections"],
+                "level": _level(count),
+            }
+            day_list_desc.append(entry)
+
+        # Build chronological copy (oldest→newest) for sparkline bars
+        for day in days_asc:
+            d = raw[ctrl.id][day]
+            count = len(d["dsfs"])
+            day_list_asc.append({
+                "date": day,
+                "label": day.strftime("%d/%m"),
+                "dsfs": count,
+                "fiches": d["fiches"],
+                "corrections": d["corrections"],
+                "level": _level(count),
+            })
+
+        rows.append({
+            "user": ctrl,
+            "days": day_list_desc,
+            "days_chrono": day_list_asc,
+            "total_dsfs": len(all_dsfs),
+            "total_fiches": total_fiches,
+            "total_corrections": total_corrections,
+        })
+
+    return {
+        "rows": rows,
+        "day_labels": [{"date": d, "label": d.strftime("%d/%m")} for d in days_desc],
+        "max_dsfs_per_day": max_dsfs,
+    }

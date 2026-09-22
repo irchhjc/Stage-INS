@@ -3,7 +3,7 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, request, send_from_directory, session, url_for
 
-from sqlalchemy.exc import OperationalError, TimeoutError as PoolTimeoutError
+from sqlalchemy.exc import InterfaceError, OperationalError, TimeoutError as PoolTimeoutError
 
 from app.extensions import db
 from config import Config
@@ -18,6 +18,8 @@ def create_app(config_object=Config):
     Path(app.config["EXPORT_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
     db.init_app(app)
+    from app.services.connection_service import configure_connection_logging, failure_code, read_user_with_reconnect
+    configure_connection_logging(app)
 
     from app.routes.dsf import dsf_bp
     from app.routes.export_excel import export_bp
@@ -42,7 +44,7 @@ def create_app(config_object=Config):
         from app.models import User
 
         user_id = session.get("user_id")
-        g.current_user = db.session.get(User, user_id) if user_id else None
+        g.current_user = read_user_with_reconnect(User, user_id) if user_id else None
         if g.current_user is not None and not g.current_user.is_active:
             session.clear()
             g.current_user = None
@@ -57,6 +59,7 @@ def create_app(config_object=Config):
             return_path = "/admin/" if request.path.startswith("/admin/") else "/"
             return redirect(url_for("auth.login", next=return_path))
 
+    @app.errorhandler(InterfaceError)
     @app.errorhandler(OperationalError)
     @app.errorhandler(PoolTimeoutError)
     def database_unavailable(error):
@@ -64,10 +67,12 @@ def create_app(config_object=Config):
         original = getattr(error, "orig", None)
         # Keep diagnostic codes, without logging SQL values or credentials.
         windows_code = 10013 if "10013" in str(original) else None
-        app.logger.error(
-            "Database request failed: type=%s sqlstate=%s windows_code=%s path=%s",
-            type(error).__name__, getattr(original, "sqlstate", None),
-            windows_code, request.path,
+        code = failure_code(error)
+        pool = db.engine.pool
+        app.extensions["connection_logger"].error(
+            "code=%s type=%s sqlstate=%s windows_code=%s path=%s pool=%s",
+            code, type(error).__name__, getattr(original, "sqlstate", None),
+            windows_code, request.path, pool.status(),
         )
         try:
             db.session.remove()
@@ -78,9 +83,11 @@ def create_app(config_object=Config):
             "L'enregistrement de votre dernière action n'est pas confirmé. "
             "Conservez vos saisies et vérifiez leur état avant de réessayer."
         )
-        headers = {"Cache-Control": "no-store"}
+        if code in {"database_pool_busy", "database_connection_limit"}:
+            message = "Base de données occupée. " + message
+        headers = {"Cache-Control": "no-store", "Retry-After": "5"}
         if request.path.startswith("/dsf/api/"):
-            return jsonify(ok=False, error=message, code="database_unavailable"), 503, headers
+            return jsonify(ok=False, error=message, code=code), 503, headers
         return (
             '<!doctype html><html lang="fr"><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'

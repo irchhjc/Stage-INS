@@ -21,6 +21,29 @@ def _session_lifetime():
     return timedelta(hours=max(1, hours))
 
 
+def _positive_env_int(name, default):
+    raw = os.environ.get(name, str(default))
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise ValueError(f"{name} doit être un entier positif.") from exc
+    if value < 1:
+        raise ValueError(f"{name} doit être un entier positif.")
+    return value
+
+
+def postgres_engine_options():
+    # A bounded pool per process; users share connections for each request.
+    return {
+        "pool_pre_ping": True,
+        "pool_size": _positive_env_int("DB_POOL_SIZE", 8),
+        "max_overflow": 0,
+        "pool_timeout": _positive_env_int("DB_POOL_TIMEOUT", 10),
+        "pool_use_lifo": True,
+        "connect_args": {"connect_timeout": 5, "application_name": "dsf-control"},
+    }
+
+
 def normalize_database_url(database_url):
     """Sélectionne explicitement psycopg 3 pour les URL PostgreSQL de Render."""
     if database_url.startswith("postgres://"):
@@ -41,7 +64,7 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS = (
         {"connect_args": {"timeout": 60, "check_same_thread": False}, "pool_pre_ping": True}
         if _DATABASE_URL.startswith("sqlite")
-        else {"pool_pre_ping": True, "connect_args": {"connect_timeout": 5}}
+        else postgres_engine_options()
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = _session_lifetime()

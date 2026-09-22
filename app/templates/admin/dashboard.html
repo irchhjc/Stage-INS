@@ -15,6 +15,19 @@
   </div>
 </div>
 
+<section class="card panel-card mt-4" aria-labelledby="globalSearchTitle">
+  <div class="card-body p-4">
+    <h2 id="globalSearchTitle" class="h5">Rechercher dans toutes les DSF</h2>
+    <p class="text-secondary small">Tous les classeurs et tous les contrôleurs, y compris les DSF non affectées.</p>
+    <form method="get" action="{{ url_for('admin.global_search') }}" class="d-flex gap-2 flex-wrap">
+      <label class="visually-hidden" for="globalDsfQuery">NIU, numéro DSF, entreprise, sigle, contrôleur ou classeur</label>
+      <input id="globalDsfQuery" name="q" class="form-control flex-grow-1" style="flex-basis:20rem" placeholder="NIU, numéro DSF, entreprise, sigle, contrôleur ou classeur">
+      <button class="btn btn-primary" type="submit">Rechercher partout</button>
+      <a class="btn btn-outline-secondary" href="{{ url_for('admin.global_search') }}">Voir toutes les DSF</a>
+    </form>
+  </div>
+</section>
+
 <section class="card panel-card performance-panel mt-4" aria-labelledby="performanceTitle">
   <div class="card-body p-4">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
@@ -70,6 +83,89 @@
   </div>
 </section>
 
+<section class="card panel-card mt-4" aria-labelledby="activityHeatmapTitle">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
+      <div>
+        <p class="eyebrow mb-1">ACTIVITÉ JOURNALIÈRE</p>
+        <h2 id="activityHeatmapTitle" class="h4 mb-1">Activité par contrôleur</h2>
+        <p class="small text-secondary mb-0">DSF actives par jour · période du {{ performance.date_from.strftime('%d/%m/%Y') }} au {{ performance.date_to.strftime('%d/%m/%Y') }} · chaque cellule représente un contrôleur un jour donné</p>
+      </div>
+    </div>
+
+    {% if controller_daily.rows %}
+
+    <div class="heatmap-wrap" role="region" aria-label="Carte d'activité journalière par contrôleur">
+      <table class="heatmap-table">
+        <thead>
+          <tr>
+            <th class="hm-name-col">Contrôleur</th>
+            {% for dl in controller_daily.day_labels %}
+            <th class="hm-day-col" title="{{ dl.date.strftime('%d/%m/%Y') }}">{{ dl.label }}</th>
+            {% endfor %}
+            <th class="hm-total-col">DSF</th>
+            <th class="hm-total-col">Fiches</th>
+            <th class="hm-total-col">Correct.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in controller_daily.rows %}
+          <tr>
+            <td class="hm-name-col">{{ row.user.username }}</td>
+            {% for day in row.days %}
+            <td class="hm-cell activity-{{ day.level }}"
+                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ row.user.username }} : {{ day.dsfs }} DSF active(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
+              {%- if day.dsfs > 0 %}<span>{{ day.dsfs }}</span>{% endif -%}
+            </td>
+            {% endfor %}
+            <td class="hm-total-col"><strong>{{ row.total_dsfs if row.total_dsfs else '—' }}</strong></td>
+            <td class="hm-total-col text-secondary">{{ row.total_fiches if row.total_fiches else '—' }}</td>
+            <td class="hm-total-col text-secondary">{{ row.total_corrections if row.total_corrections else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="heatmap-legend mt-2">
+      <span>Moins actif</span>
+      <span class="hm-legend-cell activity-0"></span>
+      <span class="hm-legend-cell activity-1"></span>
+      <span class="hm-legend-cell activity-2"></span>
+      <span class="hm-legend-cell activity-3"></span>
+      <span class="hm-legend-cell activity-4"></span>
+      <span>Plus actif</span>
+      <span class="ms-3 text-secondary">· Max observé : {{ controller_daily.max_dsfs_per_day }} DSF/jour</span>
+    </div>
+
+    <div class="mt-4">
+      <h3 class="h6 mb-3">DSF traitées par jour — détail par contrôleur</h3>
+      <div class="ctrl-sparklines">
+        {% for row in controller_daily.rows %}
+        <div class="ctrl-sparkline">
+          <div class="ctrl-sparkline-label">
+            <strong>{{ row.user.username }}</strong>
+            <span>{{ row.total_dsfs }} DSF · {{ row.total_fiches }} fiches · {{ row.total_corrections }} corrections</span>
+          </div>
+          <div class="ctrl-sparkline-bars" role="img" aria-label="DSF traitées par jour par {{ row.user.username }}">
+            {% for day in row.days_chrono %}
+            {% set bar_px = ((day.dsfs / controller_daily.max_dsfs_per_day * 52) | int) if controller_daily.max_dsfs_per_day > 0 else 0 %}
+            <div class="ctrl-bar-col" title="{{ day.date.strftime('%d/%m/%Y') }} : {{ day.dsfs }} DSF, {{ day.fiches }} fiches, {{ day.corrections }} corrections">
+              <div class="ctrl-bar-fill bar-level-{{ day.level }}" style="height: {{ bar_px }}px"></div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% else %}
+    <p class="text-center text-secondary py-4">Aucun contrôleur actif ou aucune activité enregistrée sur la période.</p>
+    {% endif %}
+  </div>
+</section>
+
 <div class="row g-4 mt-1">
   <div class="col-xl-4">
     <div class="card panel-card h-100"><div class="card-body p-4">
@@ -86,9 +182,19 @@
   <div class="col-xl-8">
     <div class="card panel-card h-100"><div class="card-body p-4">
       <h2 class="h5">Progression des contrôleurs</h2>
-      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th></tr></thead><tbody>
-        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.username }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td></tr>
-        {% else %}<tr><td colspan="7" class="text-center py-4 text-secondary">Aucun contrôleur créé.</td></tr>{% endfor %}
+      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th><th>Retrait des affectations</th></tr></thead><tbody>
+        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.username }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td>
+        <td>
+          <form method="post" action="{{ url_for('admin.unassign_not_started', controller_id=row.user.id) }}"
+                onsubmit="return window.confirm('Retirer toutes les DSF non commencées de ce contrôleur, dans tous les classeurs ? Les données seront conservées.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-sm btn-outline-danger" type="submit" {{ 'disabled' if row.not_started == 0 else '' }}>
+              Retirer les non commencées ({{ row.not_started }})
+            </button>
+            <small class="d-block text-secondary mt-1">Tous les classeurs · données conservées</small>
+          </form>
+        </td></tr>
+        {% else %}<tr><td colspan="8" class="text-center py-4 text-secondary">Aucun contrôleur créé.</td></tr>{% endfor %}
       </tbody></table></div>
     </div></div>
   </div>
