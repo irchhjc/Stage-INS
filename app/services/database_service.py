@@ -8,7 +8,13 @@ from app.services.auth_service import create_user
 def upgrade_legacy_schema():
     """Ajoute les colonnes d'affectation aux bases SQLite créées avant la gestion des comptes."""
     inspector = inspect(db.engine)
-    if "dsfs" not in inspector.get_table_names():
+    tables = inspector.get_table_names()
+    if "users" in tables:
+        user_columns = {column["name"] for column in inspector.get_columns("users")}
+        if "full_name" not in user_columns:
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR(150)"))
+    if "dsfs" not in tables:
         return
     existing = {column["name"] for column in inspector.get_columns("dsfs")}
     statements = []

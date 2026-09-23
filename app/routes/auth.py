@@ -33,7 +33,7 @@ def login():
             session["user_id"] = user.id
             user.last_login_at = datetime.now(timezone.utc)
             db.session.commit()
-            flash(f"Bienvenue, {user.username}.", "success")
+            flash(f"Bienvenue, {user.display_name}.", "success")
             return redirect(_safe_next_url(request.form.get("next")) or url_for("main.dashboard"))
         flash("Nom d'utilisateur ou mot de passe incorrect.", "danger")
     return render_template("login.html", next_url=_safe_next_url(request.args.get("next")) or "")

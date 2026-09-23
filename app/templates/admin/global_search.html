@@ -28,7 +28,7 @@
   <tbody>{% for dsf in pagination.items %}
   <tr data-dsf-id="{{ dsf.id }}"><td>{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td>
   <td>{{ dsf.annee or '—' }}</td><td>{{ dsf.import_session.filename }}</td>
-  <td>{{ dsf.assignee.username if dsf.assignee else 'Non affectée' }}</td><td>{{ status_badge(dsf.status) }}</td><td>{{ dsf.progress_percent }} %</td>
+  <td>{{ dsf.assignee.display_label if dsf.assignee else 'Non affectée' }}</td><td>{{ status_badge(dsf.status) }}</td><td>{{ dsf.progress_percent }} %</td>
   <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Ouvrir</a></td></tr>
   {% else %}<tr><td colspan="9" class="text-center py-5">Aucune DSF ne correspond à cette recherche.</td></tr>{% endfor %}</tbody>
 </table></div>

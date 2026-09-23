@@ -5,7 +5,7 @@
 <div class="dsf-header card panel-card mb-4">
   <div class="card-body p-4">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-      <div><p class="eyebrow mb-1">DOSSIER DSF</p><h1 class="h3 mb-1">{{ dsf.raison_sociale or 'Raison sociale non renseignée' }}</h1><p class="text-secondary mb-0">NIU {{ dsf.niu or '—' }} · N° {{ dsf.numero_dsf or '—' }} · {{ dsf.annee or 'Année inconnue' }} · Contrôleur : <strong>{{ dsf.assignee.username if dsf.assignee else 'non assigné' }}</strong></p></div>
+      <div><p class="eyebrow mb-1">DOSSIER DSF</p><h1 class="h3 mb-1">{{ dsf.raison_sociale or 'Raison sociale non renseignée' }}</h1><p class="text-secondary mb-0">NIU {{ dsf.niu or '—' }} · N° {{ dsf.numero_dsf or '—' }} · {{ dsf.annee or 'Année inconnue' }} · Contrôleur : <strong>{{ dsf.assignee.display_label if dsf.assignee else 'non assigné' }}</strong></p></div>
       <div>{{ status_badge(dsf.status) }}</div>
     </div>
     <div class="d-flex align-items-center gap-3 mt-4"><div class="progress flex-grow-1"><div class="progress-bar bg-success" style="width:{{ dsf.progress_percent }}%"></div></div><strong>{{ completed }} / {{ total }} fiches — {{ dsf.progress_percent }} %</strong></div>

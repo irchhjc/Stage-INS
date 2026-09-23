@@ -14,6 +14,7 @@ class User(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(50), nullable=False, unique=True, index=True)
+    full_name = db.Column(db.String(150), nullable=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="controller", index=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
@@ -30,6 +31,14 @@ class User(db.Model):
         foreign_keys="DSF.assigned_by_id",
         back_populates="assigned_by",
     )
+
+    @property
+    def display_name(self):
+        return self.full_name or self.username
+
+    @property
+    def display_label(self):
+        return f"{self.full_name} ({self.username})" if self.full_name else self.username
 
     @property
     def is_admin(self):

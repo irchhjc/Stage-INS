@@ -24,13 +24,20 @@ def validate_new_user(username, password):
     return username
 
 
-def create_user(username, password, role="controller"):
+def normalize_full_name(value):
+    name = " ".join((value or "").split())
+    if len(name) > 150:
+        raise ValueError("Le nom complet ne doit pas dépasser 150 caractères.")
+    return name or None
+
+
+def create_user(username, password, role="controller", full_name=None):
     username = validate_new_user(username, password)
     if role not in {"admin", "controller"}:
         raise ValueError("Rôle utilisateur invalide.")
     if User.query.filter_by(username=username).first():
         raise ValueError("Ce nom d'utilisateur existe déjà.")
-    user = User(username=username, role=role)
+    user = User(username=username, role=role, full_name=normalize_full_name(full_name))
     user.set_password(password)
     db.session.add(user)
     db.session.commit()

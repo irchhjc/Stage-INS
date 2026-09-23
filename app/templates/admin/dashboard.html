@@ -111,10 +111,10 @@
         <tbody>
           {% for row in controller_daily.rows %}
           <tr>
-            <td class="hm-name-col">{{ row.user.username }}</td>
+            <td class="hm-name-col">{{ row.user.display_label }}</td>
             {% for day in row.days %}
             <td class="hm-cell activity-{{ day.level }}"
-                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ row.user.username }} : {{ day.dsfs }} DSF active(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
+                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ row.user.display_label }} : {{ day.dsfs }} DSF active(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
               {%- if day.dsfs > 0 %}<span>{{ day.dsfs }}</span>{% endif -%}
             </td>
             {% endfor %}
@@ -144,10 +144,10 @@
         {% for row in controller_daily.rows %}
         <div class="ctrl-sparkline">
           <div class="ctrl-sparkline-label">
-            <strong>{{ row.user.username }}</strong>
+            <strong>{{ row.user.display_label }}</strong>
             <span>{{ row.total_dsfs }} DSF · {{ row.total_fiches }} fiches · {{ row.total_corrections }} corrections</span>
           </div>
-          <div class="ctrl-sparkline-bars" role="img" aria-label="DSF traitées par jour par {{ row.user.username }}">
+          <div class="ctrl-sparkline-bars" role="img" aria-label="DSF traitées par jour par {{ row.user.display_label }}">
             {% for day in row.days_chrono %}
             {% set bar_px = ((day.dsfs / controller_daily.max_dsfs_per_day * 52) | int) if controller_daily.max_dsfs_per_day > 0 else 0 %}
             <div class="ctrl-bar-col" title="{{ day.date.strftime('%d/%m/%Y') }} : {{ day.dsfs }} DSF, {{ day.fiches }} fiches, {{ day.corrections }} corrections">
@@ -166,6 +166,26 @@
   </div>
 </section>
 
+<section id="accountNames" class="card panel-card mt-4" aria-labelledby="accountNamesTitle">
+  <div class="card-body p-4">
+    <h2 id="accountNamesTitle" class="h5">Noms complets des utilisateurs</h2>
+    <p class="small text-secondary">Associez un nom complet à chaque compte existant. Les identifiants, mots de passe et affectations sont conservés.</p>
+    <div class="table-responsive"><table class="table align-middle">
+      <thead><tr><th>Nom d'utilisateur</th><th>Rôle</th><th>Compte</th><th>Nom complet</th></tr></thead>
+      <tbody>{% for account in account_users %}<tr>
+        <td>{{ account.username }}</td><td>{{ 'Administrateur' if account.is_admin else 'Contrôleur' }}</td>
+        <td>{{ 'Actif' if account.is_active else 'Désactivé' }}</td>
+        <td><form class="d-flex gap-2" method="post" action="{{ url_for('admin.update_full_name', user_id=account.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label class="visually-hidden" for="fullName{{ account.id }}">Nom complet de {{ account.username }}</label>
+          <input id="fullName{{ account.id }}" name="full_name" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom">
+          <button class="btn btn-outline-primary" type="submit">Enregistrer</button>
+        </form></td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</section>
+
 <div class="row g-4 mt-1">
   <div class="col-xl-4">
     <div class="card panel-card h-100"><div class="card-body p-4">
@@ -173,6 +193,7 @@
       <p class="small text-secondary">Le nom doit être en minuscules et le mot de passe comporter au moins 10 caractères.</p>
       <form method="post" action="{{ url_for('admin.create_controller') }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3"><label class="form-label" for="newFullName">Nom complet (facultatif)</label><input id="newFullName" name="full_name" class="form-control" maxlength="150" autocomplete="name" placeholder="Prénom et nom"></div>
         <div class="mb-3"><label class="form-label" for="newUsername">Nom d'utilisateur</label><input id="newUsername" name="username" class="form-control" pattern="[a-z0-9._-]{3,50}" minlength="3" maxlength="50" required autocapitalize="none" spellcheck="false"></div>
         <div class="mb-3"><label class="form-label" for="newPassword">Mot de passe</label><input id="newPassword" name="password" type="password" class="form-control" minlength="10" required autocomplete="new-password"></div>
         <button class="btn btn-success w-100">Créer le compte</button>
@@ -183,7 +204,7 @@
     <div class="card panel-card h-100"><div class="card-body p-4">
       <h2 class="h5">Progression des contrôleurs</h2>
       <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th><th>Retrait des affectations</th></tr></thead><tbody>
-        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.username }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td>
+        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.display_label }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td>
         <td>
           <form method="post" action="{{ url_for('admin.unassign_not_started', controller_id=row.user.id) }}"
                 onsubmit="return window.confirm('Retirer toutes les DSF non commencées de ce contrôleur, dans tous les classeurs ? Les données seront conservées.');">
@@ -210,7 +231,7 @@
       <div><strong>Affectation groupée du classeur</strong><small>Affecte uniquement les DSF encore libres ; les affectations existantes restent verrouillées.</small></div>
       <form class="bulk-assignment-form d-flex gap-2 flex-wrap" method="post" action="{{ url_for('admin.assign_all_dsfs', import_session_id=active_session.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <select name="user_id" class="form-select" required><option value="" selected disabled>Choisir un contrôleur…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.username }}</option>{% endfor %}</select>
+        <select name="user_id" class="form-select" required><option value="" selected disabled>Choisir un contrôleur…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select>
         <button class="btn btn-success" type="submit">Affecter toutes les DSF libres</button>
       </form>
     </div>
@@ -218,9 +239,9 @@
     {% endif %}
   </div>
   <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
-    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.username if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
-      {% if dsf.assignee %}<div class="assigned-lock"><span class="badge text-bg-success">✓ Affectée</span><strong>{{ dsf.assignee.username }}</strong><small>Affectation verrouillée</small></div>
-      {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.username }}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
+    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
+      {% if dsf.assignee %}<div class="assigned-lock"><span class="badge text-bg-success">✓ Affectée</span><strong>{{ dsf.assignee.display_label }}</strong><small>Affectation verrouillée</small></div>
+      {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
     </td><td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Voir</a></td></tr>
     {% else %}<tr><td colspan="8" class="text-center py-5 text-secondary">Aucune DSF importée.</td></tr>{% endfor %}
   </tbody></table></div>
