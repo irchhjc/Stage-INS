@@ -470,9 +470,18 @@
 
   document.getElementById("adminSessionSelector")?.addEventListener("change", event => {
     const url = new URL(window.location.href);
+    url.searchParams.set("tab", "assignments");
     url.searchParams.set("session_id", event.target.value);
     url.searchParams.delete("q");
     window.location.href = url.toString();
+  });
+
+  document.querySelectorAll("[data-admin-tab]").forEach(tab => {
+    tab.addEventListener("shown.bs.tab", event => {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", event.target.dataset.adminTab);
+      window.history.replaceState({}, "", url);
+    });
   });
 
   const adminSearch = document.getElementById("adminDsfSearch");

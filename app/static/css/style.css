@@ -71,6 +71,16 @@ body {
 .login-layout { min-height: calc(100vh - 235px); display: grid; place-items: center; padding: 2rem 0; }
 .login-card { width: min(100%, 480px); }
 .admin-progress { width: 105px; height: 7px; }
+.admin-tabs { position: sticky; top: .75rem; z-index: 10; padding: .45rem; border: 1px solid rgba(16, 42, 67, .1); border-radius: 14px; background: rgba(255, 255, 255, .94); box-shadow: 0 8px 24px rgba(16, 42, 67, .08); backdrop-filter: blur(10px); }
+.admin-tabs .nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .4rem; }
+.admin-tabs .nav-link { display: flex; align-items: center; gap: .75rem; min-height: 64px; padding: .65rem .9rem; color: var(--gray-600); text-align: left; border: 1px solid transparent; border-radius: 10px; }
+.admin-tabs .nav-link:hover { color: var(--navy); background: var(--gray-50); border-color: var(--gray-100); }
+.admin-tabs .nav-link.active { color: #fff; background: linear-gradient(100deg, var(--navy), var(--navy-2)); box-shadow: 0 5px 14px rgba(16, 42, 67, .18); }
+.admin-tabs .nav-link > span:last-child { display: flex; min-width: 0; flex-direction: column; }
+.admin-tabs .nav-link strong { font-size: .88rem; }
+.admin-tabs .nav-link small { margin-top: .08rem; color: inherit; font-size: .68rem; opacity: .72; }
+.admin-tab-index { display: grid; flex: 0 0 30px; height: 30px; place-items: center; border-radius: 8px; background: rgba(31, 111, 235, .09); color: var(--blue); font-size: .66rem; font-weight: 800; }
+.admin-tabs .nav-link.active .admin-tab-index { background: rgba(255,255,255,.15); color: #fff; }
 .performance-panel { overflow: hidden; }
 .performance-panel .metric-card { padding: .85rem 1rem; }
 .performance-panel .metric-card strong { font-size: 1.55rem; }

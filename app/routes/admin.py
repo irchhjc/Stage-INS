@@ -44,6 +44,9 @@ def _controller_progress(controllers):
 @admin_bp.get("/")
 @admin_required
 def dashboard():
+    active_tab = request.args.get("tab", "overview")
+    if active_tab not in {"overview", "controllers", "assignments"}:
+        active_tab = "overview"
     controllers = User.query.filter_by(role="controller", is_active=True).order_by(User.username).all()
     sessions = ImportSession.query.order_by(ImportSession.imported_at.desc()).all()
     requested_session = request.args.get("session_id", type=int)
@@ -81,6 +84,7 @@ def dashboard():
         term=term,
         selected_status=status,
         performance=performance,
+        active_tab=active_tab,
     )
 
 
@@ -92,7 +96,7 @@ def create_controller():
         flash(f"Le compte {user.username} a été créé.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
-    return redirect(url_for("admin.dashboard"))
+    return redirect(url_for("admin.dashboard", tab="controllers"))
 
 
 @admin_bp.post("/dsfs/<int:dsf_id>/assign")
@@ -104,12 +108,12 @@ def assign_dsf(dsf_id):
             f"Cette DSF est déjà affectée à {dsf.assignee.username}. Son affectation ne peut plus être modifiée.",
             "warning",
         )
-        return redirect(request.referrer or url_for("admin.dashboard", session_id=dsf.import_session_id))
+        return redirect(request.referrer or url_for("admin.dashboard", tab="assignments", session_id=dsf.import_session_id))
     user_id = request.form.get("user_id", type=int)
     assignee = db.session.get(User, user_id) if user_id else None
     if assignee is None or assignee.role != "controller" or not assignee.is_active:
         flash("Le contrôleur sélectionné est invalide.", "danger")
-        return redirect(request.referrer or url_for("admin.dashboard"))
+        return redirect(request.referrer or url_for("admin.dashboard", tab="assignments", session_id=dsf.import_session_id))
 
     dsf.assignee = assignee
     dsf.assigned_by = current_user()
@@ -125,7 +129,7 @@ def assign_dsf(dsf_id):
     )
     db.session.commit()
     flash(f"DSF {dsf.numero_dsf or dsf.niu} assignée à {assignee.username}.", "success")
-    return redirect(request.referrer or url_for("admin.dashboard"))
+    return redirect(request.referrer or url_for("admin.dashboard", tab="assignments", session_id=dsf.import_session_id))
 
 
 @admin_bp.post("/import-sessions/<int:import_session_id>/assign-all")
@@ -136,7 +140,7 @@ def assign_all_dsfs(import_session_id):
     assignee = db.session.get(User, user_id) if user_id else None
     if assignee is None or assignee.role != "controller" or not assignee.is_active:
         flash("Sélectionnez un contrôleur valide.", "danger")
-        return redirect(url_for("admin.dashboard", session_id=import_session.id))
+        return redirect(url_for("admin.dashboard", tab="assignments", session_id=import_session.id))
 
     dsfs = DSF.query.filter_by(import_session_id=import_session.id).order_by(DSF.id).all()
     unassigned = [dsf for dsf in dsfs if dsf.assigned_to_id is None]
@@ -165,7 +169,7 @@ def assign_all_dsfs(import_session_id):
         flash(message, "success")
     else:
         flash("Toutes les DSF de ce classeur étaient déjà affectées. Aucune modification effectuée.", "warning")
-    return redirect(url_for("admin.dashboard", session_id=import_session.id))
+    return redirect(url_for("admin.dashboard", tab="assignments", session_id=import_session.id))
 
 
 @admin_bp.post("/controllers/<int:controller_id>/unassign-not-started")
@@ -204,7 +208,7 @@ def unassign_not_started(controller_id):
         )
     else:
         flash(f"Aucune DSF non commencée à retirer à {controller.username}.", "info")
-    return redirect(url_for("admin.dashboard"))
+    return redirect(url_for("admin.dashboard", tab="controllers"))
 
 
 @admin_bp.get("/search")
@@ -260,7 +264,7 @@ def update_full_name(user_id):
         flash(f"Nom complet enregistré pour {user.username}.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
-    return redirect(url_for("admin.dashboard", _anchor="accountNames"))
+    return redirect(url_for("admin.dashboard", tab="controllers", _anchor="accountNames"))
 
 
 @admin_bp.post("/import-sessions/<int:import_session_id>/assign-branch")
@@ -291,4 +295,4 @@ def assign_branch(import_session_id):
         db.session.rollback()
         raise
     flash(f"{len(ids)} DSF libre(s) affectée(s) à {assignee.display_label} : {selected['label']}.", "success")
-    return redirect(url_for("admin.dashboard", session_id=import_session_id, branch=branch))
+    return redirect(url_for("admin.dashboard", tab="assignments", session_id=import_session_id, branch=branch))
