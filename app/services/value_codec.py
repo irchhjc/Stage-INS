@@ -5,9 +5,20 @@ from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
 
 
+from app.services.mapping_service import normalize_label
+
+
 TEXT_IDENTIFIERS = {
     "NUMERO DE LA DSF",
     "NUMERO DSF_T",
+    "NUMERO_T",
+    "Code Catégorie de l'entreprise (Taille)",
+    "Code Ville",
+    "Code Secteur Institutionnel",
+    "Code Section",
+    "Code Branche d'activité",
+    "Code Sous-Branche d'activité",
+    "Code Forme juridique",
     "NIU",
     "Cle",
     "Raison sociale",
@@ -18,6 +29,9 @@ TEXT_IDENTIFIERS = {
     "Numéro de Téléphone 2",
     "e-mail",
 }
+
+
+NORMALIZED_TEXT_IDENTIFIERS = {normalize_label(name) for name in TEXT_IDENTIFIERS}
 
 
 def serialize_value(value):
@@ -92,7 +106,7 @@ def parse_user_value(raw, original_serialized, variable_name):
     if not text:
         return None
     original_type = value_type(original_serialized)
-    if variable_name in TEXT_IDENTIFIERS or original_type in {"string", "formula"}:
+    if normalize_label(variable_name) in NORMALIZED_TEXT_IDENTIFIERS or original_type in {"string", "formula"}:
         return text
     if original_type == "bool":
         lowered = text.casefold()

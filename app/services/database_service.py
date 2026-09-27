@@ -23,7 +23,10 @@ def upgrade_legacy_schema():
     if "assigned_by_id" not in existing:
         statements.append("ALTER TABLE dsfs ADD COLUMN assigned_by_id INTEGER REFERENCES users(id)")
     if "assigned_at" not in existing:
-        statements.append("ALTER TABLE dsfs ADD COLUMN assigned_at DATETIME")
+        datetime_type = (
+            "TIMESTAMP WITH TIME ZONE" if db.engine.dialect.name == "postgresql" else "DATETIME"
+        )
+        statements.append(f"ALTER TABLE dsfs ADD COLUMN assigned_at {datetime_type}")
     with db.engine.begin() as connection:
         for statement in statements:
             connection.execute(text(statement))

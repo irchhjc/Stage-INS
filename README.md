@@ -2,6 +2,13 @@
 
 Application Web Flask destinée au contrôle manuel, à la correction, à la validation et à l'export de DSF enregistrées dans un classeur Excel.
 
+## Déploiement VPS Hostinger
+
+Le déploiement de production Docker, PostgreSQL et HTTPS est documenté dans
+[`DEPLOIEMENT_VPS_HOSTINGER.md`](DEPLOIEMENT_VPS_HOSTINGER.md). La configuration
+utilise `compose.prod.yaml`, conserve les données dans des volumes nommés et
+inclut les scripts de sauvegarde, restauration et migration depuis Windows.
+
 ## Garanties du MVP
 
 - Les noms d'en-têtes Excel ne sont jamais renommés.

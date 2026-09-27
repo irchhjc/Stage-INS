@@ -13,11 +13,16 @@ def export_all_completed():
     try:
         path, workbook_count, dsf_count = export_all_completed_workbooks()
         current_app.logger.info(
-            "Export global créé : %s classeur(s), %s DSF terminée(s)",
+            "Export global créé : %s source(s), %s DSF terminée(s)",
             workbook_count,
             dsf_count,
         )
-        return send_file(path, as_attachment=True, download_name=path.name, mimetype="application/zip")
+        return send_file(
+            path,
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
     except (ValueError, FileNotFoundError) as exc:
         flash(f"Export global impossible : {exc}", "warning")
         return redirect(request.referrer or url_for("admin.dashboard"))

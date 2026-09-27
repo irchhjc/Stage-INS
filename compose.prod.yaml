@@ -1,0 +1,105 @@
+name: dsf-control
+
+services:
+  db:
+    image: postgres:18-trixie
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dsf-control:latest
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+    volumes:
+      - app_instance:/app/instance
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5)"
+      interval: 30s
+      timeout: 8s
+      retries: 5
+      start_period: 45s
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    shm_size: "256m"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - backend
+    logging:
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+        restart: true
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - backend
+    logging:
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+networks:
+  backend:
+    name: dsf_backend
+
+volumes:
+  postgres_data:
+    name: dsf_postgres_data
+  app_instance:
+    name: dsf_instance_data
+  caddy_data:
+    name: dsf_caddy_data
+  caddy_config:
+    name: dsf_caddy_config

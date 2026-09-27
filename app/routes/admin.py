@@ -8,8 +8,9 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
 from app.services.admin_dashboard_service import build_admin_performance, build_controller_daily_stats
-from app.services.auth_service import admin_required, create_user, current_user, normalize_full_name
+from app.services.auth_service import admin_required, login_required, create_user, current_user, normalize_full_name
 from app.services.dsf_service import search_dsfs
+from app.services.activity_service import activity_groups
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -50,6 +51,10 @@ def dashboard():
     term = request.args.get("q", "")
     status = request.args.get("status", "")
     dsfs = search_dsfs(term, status, active_session.id if active_session else None) if active_session else []
+    activity, branches = activity_groups(active_session.id) if active_session else ({}, [])
+    branch = request.args.get("branch", "")
+    if branch:
+        dsfs = [d for d in dsfs if activity.get(d.id, {}).get("key") == branch]
     try:
         performance = build_admin_performance(
             request.args.get("date_from"),
@@ -65,6 +70,7 @@ def dashboard():
     )
     return render_template(
         "admin/dashboard.html",
+        activity=activity, branches=branches, branch=branch,
         account_users=User.query.order_by(User.username).all(),
         controllers=controllers,
         controller_progress=_controller_progress(controllers),
@@ -202,21 +208,28 @@ def unassign_not_started(controller_id):
 
 
 @admin_bp.get("/search")
-@admin_required
+@login_required
 def global_search():
     term = request.args.get("q", "").strip()
     assignment = request.args.get("assignment", "all")
     if assignment not in {"all", "assigned", "unassigned"}:
         assignment = "all"
+    if not current_user().is_admin:
+        assignment = "assigned"
+    activity, branches = activity_groups(assigned_only=not current_user().is_admin)
+    branch = request.args.get("branch", "")
     page = max(1, request.args.get("page", 1, type=int))
     query = DSF.query.join(ImportSession).options(
         joinedload(DSF.assignee), joinedload(DSF.import_session),
     )
+    if branch:
+        query = query.filter(DSF.id.in_([i for i, a in activity.items() if a["key"] == branch]))
     if term:
         # Treat user-entered SQL wildcard characters as literal text.
         escaped = term.replace("!", "!!").replace("%", "!%").replace("_", "!_")
         pattern = f"%{escaped}%"
         query = query.filter(or_(
+            DSF.id.in_([i for i, a in activity.items() if term.casefold() in a["label"].casefold()]),
             DSF.niu.ilike(pattern, escape="!"),
             DSF.numero_dsf.ilike(pattern, escape="!"),
             DSF.raison_sociale.ilike(pattern, escape="!"),
@@ -233,7 +246,7 @@ def global_search():
     )
     return render_template(
         "admin/global_search.html", pagination=pagination,
-        term=term, assignment=assignment,
+        term=term, assignment=assignment, activity=activity, branches=branches, branch=branch,
     )
 
 
@@ -248,3 +261,34 @@ def update_full_name(user_id):
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("admin.dashboard", _anchor="accountNames"))
+
+
+@admin_bp.post("/import-sessions/<int:import_session_id>/assign-branch")
+@admin_required
+def assign_branch(import_session_id):
+    db.get_or_404(ImportSession, import_session_id)
+    assignee = db.session.get(User, request.form.get("user_id", type=int))
+    if not assignee or assignee.role != "controller" or not assignee.is_active:
+        abort(400)
+    branch = request.form.get("branch", "")
+    _, groups = activity_groups(import_session_id)
+    selected = next((g for g in groups if g["key"] == branch), None)
+    if selected is None:
+        abort(400)
+    administrator = current_user()
+    try:
+        ids = db.session.execute(update(DSF).where(
+            DSF.import_session_id == import_session_id,
+            DSF.id.in_(selected["ids"]), DSF.assigned_to_id.is_(None),
+        ).values(assigned_to_id=assignee.id, assigned_by_id=administrator.id,
+                 assigned_at=datetime.now(timezone.utc)).returning(DSF.id)).scalars().all()
+        for dsf_id in ids:
+            db.session.add(AuditLog(dsf_id=dsf_id, action="affectation par sous-branche",
+                old_value="Non assignée", new_value=assignee.username,
+                operator=administrator.username))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    flash(f"{len(ids)} DSF libre(s) affectée(s) à {assignee.display_label} : {selected['label']}.", "success")
+    return redirect(url_for("admin.dashboard", session_id=import_session_id, branch=branch))

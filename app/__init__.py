@@ -3,15 +3,37 @@ from pathlib import Path
 
 from flask import Flask, abort, flash, g, jsonify, redirect, request, send_from_directory, session, url_for
 
+from sqlalchemy import text
 from sqlalchemy.exc import InterfaceError, OperationalError, TimeoutError as PoolTimeoutError
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.extensions import db
 from config import Config
 
 
+def _validate_production_config(app):
+    if not app.config.get("PRODUCTION"):
+        return
+    errors = []
+    secret_key = str(app.config.get("SECRET_KEY") or "")
+    admin_password = str(app.config.get("INITIAL_ADMIN_PASSWORD") or "")
+    database_url = str(app.config.get("SQLALCHEMY_DATABASE_URI") or "")
+    if len(secret_key) < 32 or secret_key == "dev-change-me-before-production":
+        errors.append("SECRET_KEY doit contenir au moins 32 caractères aléatoires")
+    if len(admin_password) < 12 or admin_password == "change-me-before-production":
+        errors.append("INITIAL_ADMIN_PASSWORD doit être remplacé")
+    if not database_url.startswith("postgresql+psycopg://"):
+        errors.append("la production exige PostgreSQL avec le pilote psycopg")
+    if errors:
+        raise RuntimeError("Configuration de production invalide : " + "; ".join(errors))
+
+
 def create_app(config_object=Config):
     app = Flask(__name__, instance_relative_config=True)
     app.config.from_object(config_object)
+    _validate_production_config(app)
+    if app.config.get("TRUST_PROXY_HEADERS"):
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     Path(app.instance_path).mkdir(parents=True, exist_ok=True)
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
@@ -48,7 +70,7 @@ def create_app(config_object=Config):
         if g.current_user is not None and not g.current_user.is_active:
             session.clear()
             g.current_user = None
-        public_endpoints = {"auth.login", "static", "brand_asset"}
+        public_endpoints = {"auth.login", "static", "brand_asset", "healthz"}
         if request.endpoint in public_endpoints:
             return None
         if g.current_user is None:
@@ -146,6 +168,11 @@ def create_app(config_object=Config):
         if Path(filename).suffix.casefold() not in {".png", ".jpg", ".jpeg", ".webp", ".svg", ".gif"}:
             abort(404)
         return send_from_directory(logo_folder, filename, conditional=True, max_age=86400)
+
+    @app.get("/healthz")
+    def healthz():
+        db.session.execute(text("SELECT 1"))
+        return jsonify(status="ok"), 200, {"Cache-Control": "no-store"}
 
     with app.app_context():
         db.create_all()

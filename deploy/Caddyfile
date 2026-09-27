@@ -1,0 +1,22 @@
+{$SITE_ADDRESS:http://localhost} {
+    encode zstd gzip
+
+    reverse_proxy web:8000 {
+        health_uri /healthz
+        health_interval 30s
+        health_timeout 5s
+    }
+
+    header {
+        -Server
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        Referrer-Policy strict-origin-when-cross-origin
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}

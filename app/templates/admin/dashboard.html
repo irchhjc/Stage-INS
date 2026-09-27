@@ -7,7 +7,7 @@
   <div class="d-flex gap-2 flex-wrap justify-content-end">
     <form method="post" action="{{ url_for('export_excel.export_all_completed') }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button class="btn btn-success" type="submit" {{ 'disabled' if performance.summary.completed_all == 0 else '' }} title="{{ 'Aucune DSF terminée à exporter' if performance.summary.completed_all == 0 else 'Télécharger les DSF terminées de tous les classeurs et de tous les contrôleurs' }}">
+      <button class="btn btn-success" type="submit" {{ 'disabled' if performance.summary.completed_all == 0 else '' }} title="{{ 'Aucune DSF terminée à exporter' if performance.summary.completed_all == 0 else 'Télécharger les DSF terminées dans un seul fichier Excel' }}">
         Exporter toutes les DSF terminées ({{ performance.summary.completed_all }})
       </button>
     </form>
@@ -60,26 +60,6 @@
       <div class="progress mt-2"><div class="progress-bar bg-success" style="width: {{ performance.summary.completion_rate }}%"></div></div>
     </div>
 
-    <div class="performance-trend mt-4">
-      <div class="d-flex justify-content-between align-items-end gap-3 flex-wrap mb-3">
-        <div><h3 class="h6 mb-1">Flux quotidien</h3><p class="small text-secondary mb-0">Volumes importés, affectés et activité enregistrée dans le journal de contrôle.</p></div>
-        <div class="trend-legend"><span><i class="trend-key key-imported"></i>DSF saisies</span><span><i class="trend-key key-completed"></i>DSF finalisées</span></div>
-      </div>
-      <div class="trend-list" role="list" aria-label="Indicateurs quotidiens">
-        {% for day in performance.daily %}
-        <div class="trend-row" role="listitem">
-          <time datetime="{{ day.date.isoformat() }}">{{ day.label }}</time>
-          <div class="trend-bars">
-            <div class="trend-track" title="{{ day.imported }} DSF saisie(s)"><span class="trend-bar trend-imported" style="width: {{ day.imported_percent }}%"></span></div>
-            <div class="trend-track" title="{{ day.completed }} DSF finalisée(s)"><span class="trend-bar trend-completed" style="width: {{ day.completed_percent }}%"></span></div>
-          </div>
-          <div class="trend-counts"><strong>{{ day.imported }}</strong> saisies · <strong>{{ day.assigned }}</strong> affectées · <strong>{{ day.completed }}</strong> finalisées</div>
-          <div class="trend-activity"><span>{{ day.active_dsfs }} DSF actives</span><span>{{ day.finalized_fiches }} fiches clôturées</span><span>{{ day.corrections }} corrections</span></div>
-        </div>
-        {% endfor %}
-      </div>
-      <p class="performance-definition mb-0 mt-3"><strong>Lecture correcte :</strong> « saisies » correspond aux lignes DSF importées ce jour-là. « finalisées » correspond aux DSF actuellement terminées, datées par la validation de leur dernière fiche. Ces deux volumes ne décrivent donc pas nécessairement la même cohorte.</p>
-    </div>
   </div>
 </section>
 
@@ -138,27 +118,6 @@
       <span class="ms-3 text-secondary">· Max observé : {{ controller_daily.max_dsfs_per_day }} DSF/jour</span>
     </div>
 
-    <div class="mt-4">
-      <h3 class="h6 mb-3">DSF traitées par jour — détail par contrôleur</h3>
-      <div class="ctrl-sparklines">
-        {% for row in controller_daily.rows %}
-        <div class="ctrl-sparkline">
-          <div class="ctrl-sparkline-label">
-            <strong>{{ row.user.display_label }}</strong>
-            <span>{{ row.total_dsfs }} DSF · {{ row.total_fiches }} fiches · {{ row.total_corrections }} corrections</span>
-          </div>
-          <div class="ctrl-sparkline-bars" role="img" aria-label="DSF traitées par jour par {{ row.user.display_label }}">
-            {% for day in row.days_chrono %}
-            {% set bar_px = ((day.dsfs / controller_daily.max_dsfs_per_day * 52) | int) if controller_daily.max_dsfs_per_day > 0 else 0 %}
-            <div class="ctrl-bar-col" title="{{ day.date.strftime('%d/%m/%Y') }} : {{ day.dsfs }} DSF, {{ day.fiches }} fiches, {{ day.corrections }} corrections">
-              <div class="ctrl-bar-fill bar-level-{{ day.level }}" style="height: {{ bar_px }}px"></div>
-            </div>
-            {% endfor %}
-          </div>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
 
     {% else %}
     <p class="text-center text-secondary py-4">Aucun contrôleur actif ou aucune activité enregistrée sur la période.</p>
@@ -235,11 +194,30 @@
         <button class="btn btn-success" type="submit">Affecter toutes les DSF libres</button>
       </form>
     </div>
+
+    <section class="mt-3" aria-labelledby="branchTitle">
+      <h3 class="h6" id="branchTitle">Afficher et affecter par sous-branche d’activité</h3>
+      <form method="get" class="d-flex gap-2 mb-3">
+        <input type="hidden" name="session_id" value="{{ active_session.id }}">
+        <label class="visually-hidden" for="activityBranch">Sous-branche</label>
+        <select id="activityBranch" name="branch" class="form-select"><option value="">Toutes les sous-branches</option>
+        {% for item in branches %}<option value="{{ item.key }}" {{ 'selected' if branch == item.key else '' }}>{{ item.label }} — {{ item.ids|length }} DSF, {{ item.free }} libres</option>{% endfor %}</select>
+        <button class="btn btn-outline-primary">Afficher</button>
+      </form>
+      {% if branch %}{% for item in branches if item.key == branch %}
+      <form method="post" class="d-flex gap-2 flex-wrap mb-3" action="{{ url_for('admin.assign_branch', import_session_id=active_session.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="branch" value="{{ branch }}">
+        <label class="visually-hidden" for="branchController">Contrôleur</label>
+        <select id="branchController" name="user_id" class="form-select" required><option value="" disabled selected>Choisir un contrôleur</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select>
+        <button class="btn btn-primary" {{ 'disabled' if item.free == 0 else '' }}>Affecter les {{ item.free }} DSF libres de cette sous-branche</button>
+      </form>{% endfor %}{% endif %}
+      <p class="small text-secondary">Le code et le libellé des colonnes Sous-Branche sont regroupés. Les données manquantes restent dans « Sous-branche non renseignée ».</p>
+    </section>
     <input id="adminDsfSearch" class="form-control mt-3" placeholder="Rechercher NIU, numéro DSF, raison sociale ou contrôleur…">
     {% endif %}
   </div>
-  <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
-    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
+  <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Sous-branche</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
+    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ activity[dsf.id].label }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
       {% if dsf.assignee %}<div class="assigned-lock"><span class="badge text-bg-success">✓ Affectée</span><strong>{{ dsf.assignee.display_label }}</strong><small>Affectation verrouillée</small></div>
       {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
     </td><td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Voir</a></td></tr>

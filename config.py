@@ -53,13 +53,30 @@ def normalize_database_url(database_url):
     return database_url
 
 
+def configured_database_url():
+    explicit_url = os.environ.get("DATABASE_URL")
+    if explicit_url:
+        return normalize_database_url(explicit_url)
+    if os.environ.get("DB_HOST"):
+        from sqlalchemy.engine import URL
+
+        return URL.create(
+            "postgresql+psycopg",
+            username=os.environ.get("DB_USER") or os.environ.get("POSTGRES_USER", "dsf_app"),
+            password=os.environ.get("DB_PASSWORD") or os.environ.get("POSTGRES_PASSWORD"),
+            host=os.environ["DB_HOST"],
+            port=int(os.environ.get("DB_PORT", "5432")),
+            database=os.environ.get("DB_NAME") or os.environ.get("POSTGRES_DB", "insdsf"),
+        ).render_as_string(hide_password=False)
+    return f"sqlite:///{(BASE_DIR / 'instance' / 'dsf_control.db').as_posix()}"
+
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-change-me-before-production")
-    _DATABASE_URL = normalize_database_url(
-        os.environ.get(
-            "DATABASE_URL", f"sqlite:///{(BASE_DIR / 'instance' / 'dsf_control.db').as_posix()}"
-        )
-    )
+    APP_ENV = os.environ.get("APP_ENV", "development").strip().casefold()
+    PRODUCTION = APP_ENV == "production"
+    TRUST_PROXY_HEADERS = _env_flag("TRUST_PROXY_HEADERS", PRODUCTION)
+    _DATABASE_URL = configured_database_url()
     SQLALCHEMY_DATABASE_URI = _DATABASE_URL
     SQLALCHEMY_ENGINE_OPTIONS = (
         {"connect_args": {"timeout": 60, "check_same_thread": False}, "pool_pre_ping": True}
@@ -72,16 +89,20 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_SECURE = _env_flag("SESSION_COOKIE_SECURE", _env_flag("RENDER"))
-    MAX_CONTENT_LENGTH = 50 * 1024 * 1024
+    MAX_CONTENT_LENGTH = _positive_env_int("MAX_UPLOAD_MB", 100) * 1024 * 1024
     UPLOAD_FOLDER = BASE_DIR / "instance" / "uploads"
     EXPORT_FOLDER = BASE_DIR / "instance" / "exports"
     ALLOWED_EXTENSIONS = {"xlsx"}
     INITIAL_ADMIN_USERNAME = os.environ.get("INITIAL_ADMIN_USERNAME", "irch")
-    INITIAL_ADMIN_PASSWORD = os.environ.get("INITIAL_ADMIN_PASSWORD", "15081960irchdefluviaire")
+    INITIAL_ADMIN_PASSWORD = os.environ.get(
+        "INITIAL_ADMIN_PASSWORD", "change-me-before-production"
+    )
 
 
 class TestConfig(Config):
     TESTING = True
+    PRODUCTION = False
+    TRUST_PROXY_HEADERS = False
     WTF_CSRF_ENABLED = False
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SECRET_KEY = "test-key"

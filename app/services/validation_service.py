@@ -5,6 +5,7 @@ from sqlalchemy.orm import joinedload
 from app.config.validation_rules import BALANCE_RULE, NET_RULE_SUFFIXES
 from app.models import DSFValue, ImportColumn
 from app.services.value_codec import deserialize_value
+from app.services.mapping_service import normalize_label
 
 
 def _numeric(value):
@@ -39,17 +40,17 @@ def run_validation_rules(dsf_id):
     active = by_fiche["BILAN_ACTIF"]
     by_name = defaultdict(list)
     for value in active:
-        by_name[value.variable_name].append(value)
+        by_name[normalize_label(value.variable_name)].append(value)
 
-    suffixes = NET_RULE_SUFFIXES
+    suffixes = {key: normalize_label(value) if isinstance(value, str) else value for key, value in NET_RULE_SUFFIXES.items()}
     for gross_value in active:
-        name = gross_value.variable_name
+        name = normalize_label(gross_value.variable_name)
         if not name.endswith(suffixes["brut"]):
             continue
         base = name[: -len(suffixes["brut"])]
         depreciation_items = by_name.get(base + suffixes["depreciation"], [])
         net_items = by_name.get(base + suffixes["net"], [])
-        if not depreciation_items or not net_items:
+        if len(by_name[name]) != 1 or len(depreciation_items) != 1 or len(net_items) != 1:
             continue
         gross = _numeric(deserialize_value(gross_value.current_value))
         depreciation = _numeric(deserialize_value(depreciation_items[0].current_value))
@@ -72,9 +73,9 @@ def run_validation_rules(dsf_id):
                 }
             )
 
-    actif = next((value for value in active if value.variable_name == BALANCE_RULE["actif"]), None)
+    actif = next((value for value in active if normalize_label(value.variable_name) == normalize_label(BALANCE_RULE["actif"])), None)
     passif = next(
-        (value for value in by_fiche["BILAN_PASSIF"] if value.variable_name == BALANCE_RULE["passif"]),
+        (value for value in by_fiche["BILAN_PASSIF"] if normalize_label(value.variable_name) == normalize_label(BALANCE_RULE["passif"])),
         None,
     )
     if actif and passif:

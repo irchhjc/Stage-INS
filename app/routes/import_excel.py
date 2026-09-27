@@ -2,6 +2,7 @@ from pathlib import Path
 from threading import Lock
 
 from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from app.extensions import db
@@ -17,6 +18,7 @@ from app.services.auth_service import admin_required
 
 import_bp = Blueprint("import_excel", __name__, url_prefix="/import")
 import_lock = Lock()
+POSTGRES_IMPORT_LOCK_ID = 918240651
 
 
 def _is_xlsx(filename):
@@ -26,9 +28,28 @@ def _is_xlsx(filename):
 def _import_safely(filepath, filename, sheet_name=None):
     if not import_lock.acquire(blocking=False):
         raise RuntimeError("Un autre import est déjà en cours. Attendez sa fin avant de recommencer.")
+    lock_connection = None
     try:
+        if db.engine.dialect.name == "postgresql":
+            lock_connection = db.engine.connect()
+            acquired = lock_connection.execute(
+                text("SELECT pg_try_advisory_lock(:lock_id)"),
+                {"lock_id": POSTGRES_IMPORT_LOCK_ID},
+            ).scalar_one()
+            if not acquired:
+                raise RuntimeError(
+                    "Un autre import est déjà en cours. Attendez sa fin avant de recommencer."
+                )
         return import_workbook(filepath, filename, sheet_name=sheet_name)
     finally:
+        if lock_connection is not None:
+            try:
+                lock_connection.execute(
+                    text("SELECT pg_advisory_unlock(:lock_id)"),
+                    {"lock_id": POSTGRES_IMPORT_LOCK_ID},
+                )
+            finally:
+                lock_connection.close()
         import_lock.release()
 
 
@@ -76,7 +97,7 @@ def import_page():
                 f"Import terminé : {import_session.row_count} DSF et {import_session.column_count} colonnes.",
                 "success",
             )
-            return redirect(url_for("main.dashboard", session_id=import_session.id))
+            return redirect(url_for("admin.dashboard", session_id=import_session.id))
         except (ExcelImportError, ValueError) as exc:
             db.session.rollback()
             _cleanup_failed_copy(saved_path)
@@ -112,7 +133,7 @@ def import_local():
             f"Import terminé : {import_session.row_count} DSF et {import_session.column_count} colonnes.",
             "success",
         )
-        return redirect(url_for("main.dashboard", session_id=import_session.id))
+        return redirect(url_for("admin.dashboard", session_id=import_session.id))
     except Exception as exc:
         _cleanup_failed_copy(copied)
         _handle_import_failure(exc, "Échec de l'import local")

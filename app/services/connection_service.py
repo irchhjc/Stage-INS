@@ -34,7 +34,7 @@ def configure_connection_logging(app):
     if app.testing:
         app.extensions["connection_logger"] = app.logger
         return
-    folder = Path(app.instance_path) / "logs"
+    folder = Path(app.config.get("LOG_FOLDER") or (Path(app.instance_path) / "logs"))
     folder.mkdir(parents=True, exist_ok=True)
     # Separate files avoid rotation conflicts if several workers run.
     logger = logging.getLogger(f"dsf.connections.{os.getpid()}")

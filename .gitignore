@@ -5,6 +5,14 @@ __pycache__/
 instance/
 *.log
 .env
+.env.production
+.env.production.local
 .local-server.ps1
+backups/
+migration_bundle_*/
+*.dump
+*.tar.gz
+.ci-secrets/
+.claude/
 
 dsf.xlsx

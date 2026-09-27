@@ -12,7 +12,9 @@ class MappingError(ValueError):
 def normalize_label(value):
     text = unicodedata.normalize("NFKD", str(value or ""))
     text = "".join(char for char in text if not unicodedata.combining(char))
-    return re.sub(r"\s+", " ", text).strip().casefold()
+    text = re.sub(r"\s+", " ", text).strip().casefold()
+    # Matching only: source headers are stored and exported verbatim.
+    return re.sub(r"\s*([()])\s*", r"\1", text)
 
 
 def build_column_mapping(headers):

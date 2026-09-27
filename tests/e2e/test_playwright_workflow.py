@@ -20,6 +20,7 @@ def e2e_server(tmp_path):
         MAX_CONTENT_LENGTH = 5 * 1024 * 1024
         UPLOAD_FOLDER = tmp_path / "uploads"
         EXPORT_FOLDER = tmp_path / "exports"
+        LOG_FOLDER = tmp_path / "logs"
         ALLOWED_EXTENSIONS = {"xlsx"}
         INITIAL_ADMIN_USERNAME = "irch"
         INITIAL_ADMIN_PASSWORD = "15081960irchdefluviaire"
@@ -58,7 +59,12 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
 
         page.goto(f"{base_url}/import/")
         page.locator("input[type=file]").set_input_files(workbook_path)
-        page.get_by_role("button", name="Analyser et importer").click()
+        sheet_select = page.locator("#sheetName")
+        expect(sheet_select.locator("option")).to_have_count(2)
+        sheet_select.select_option(index=1)
+        import_button = page.locator("#importSelectedSheet")
+        expect(import_button).to_be_enabled()
+        import_button.click()
         expect(page.get_by_text("Import terminé : 2 DSF")).to_be_visible()
 
         page.goto(f"{base_url}/admin/")

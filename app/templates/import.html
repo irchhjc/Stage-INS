@@ -14,7 +14,9 @@
     <div class="card panel-card h-100">
       <div class="card-body p-4 p-lg-5">
         <h2 class="h4">Importer un fichier .xlsx</h2>
-        <p class="text-secondary">Choisissez le classeur, puis la feuille à importer. La ligne d'en-tête contenant la colonne exacte <code>NIU</code> sera détectée dans cette feuille.</p>
+        <p class="text-secondary">Choisissez le classeur, puis la feuille à importer. La ligne d'en-tête contenant la colonne <code>NIU</code> (espaces superflus tolérés) sera détectée dans cette feuille.</p>
+        <p class="text-secondary">Après l’import, affichez et affectez les DSF par sous-branche d’activité dans Administration. Les colonnes Sous-Branche sont conservées, y compris leurs doublons.</p>
+        <p class="small text-secondary">Formats acceptés : ancien NUMERO DSF_T ou nouveau NUMERO_T ; code et libellé de sous-branche distincts. Aucun en-tête Excel n’est renommé.</p>
         <form id="sheetImportForm" method="post" enctype="multipart/form-data" class="mt-4">
           <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
           <div class="upload-zone">
@@ -40,9 +42,9 @@
       <div class="card-body p-4">
         <h2 class="h5">Contrôles effectués</h2>
         <ul class="check-list mt-3">
-          <li>présence unique de la colonne <code>NIU</code> ;</li>
+          <li>présence unique de la colonne <code>NIU</code>, avec ou sans espaces ;</li>
           <li>repérage explicite des 35 fiches ;</li>
-          <li>conservation des 1 777 noms et positions ;</li>
+          <li>conservation exacte des noms, de l’ordre et des doublons de colonnes ;</li>
           <li>prise en charge des doublons d'en-têtes ;</li>
           <li>copie immuable du classeur source.</li>
         </ul>

@@ -10,13 +10,13 @@ from sqlalchemy import insert
 from app.config.fiche_mapping import FICHE_DEFINITIONS
 from app.extensions import db
 from app.models import DSF, DSFValue, FicheStatus, ImportColumn, ImportSession
-from app.services.mapping_service import MappingError, build_column_mapping
+from app.services.mapping_service import MappingError, build_column_mapping, normalize_label
 from app.services.value_codec import deserialize_value, display_value, serialize_value
 
 
 IDENTITY_HEADERS = {
     "numero_dsf": "NUMERO DE LA DSF",
-    "numero_dsf_t": "NUMERO DSF_T",
+    "numero_dsf_t": ("NUMERO DSF_T", "NUMERO_T"),
     "niu": "NIU",
     "cle": "Cle",
     "raison_sociale": "Raison sociale",
@@ -27,6 +27,22 @@ IDENTITY_HEADERS = {
 
 class ExcelImportError(ValueError):
     pass
+
+
+def _identity_positions(headers):
+    positions = {}
+    normalized = [normalize_label(header) for header in headers]
+    for field, aliases in IDENTITY_HEADERS.items():
+        aliases = (aliases,) if isinstance(aliases, str) else aliases
+        accepted = {normalize_label(alias) for alias in aliases}
+        matches = [index + 1 for index, header in enumerate(normalized) if header in accepted]
+        if len(matches) > 1:
+            raise ExcelImportError(
+                f"Identifiant ambigu : {' / '.join(aliases)} apparaît dans plusieurs colonnes "
+                f"({', '.join(get_column_letter(index) for index in matches)})."
+            )
+        positions[field] = matches[0] if matches else None
+    return positions
 
 
 def list_workbook_sheets(source):
@@ -47,7 +63,7 @@ def _sheet_candidates(workbook, worksheets=None):
             worksheet.iter_rows(min_row=1, max_row=min(worksheet.max_row, 20), values_only=True),
             start=1,
         ):
-            if "NIU" in values:
+            if any(normalize_label(value) == "niu" for value in values):
                 candidates.append((worksheet.title, row_index))
     return candidates
 
@@ -70,7 +86,7 @@ def inspect_workbook(filepath, sheet_name=None, header_row=None):
                 if len(candidates) != 1:
                     raise ExcelImportError(
                         "La feuille sélectionnée doit contenir une seule ligne d'en-tête "
-                        "avec la colonne exacte NIU dans ses 20 premières lignes."
+                        "avec la colonne NIU dans ses 20 premières lignes."
                     )
                 selected_header_row = candidates[0][1]
         else:
@@ -97,8 +113,8 @@ def inspect_workbook(filepath, sheet_name=None, header_row=None):
         )
         if not headers or all(value is None for value in headers):
             raise ExcelImportError("La ligne d'en-tête est vide.")
-        if headers.count("NIU") != 1:
-            raise ExcelImportError("La colonne exacte « NIU » doit apparaître une seule fois.")
+        if sum(normalize_label(header) == "niu" for header in headers) != 1:
+            raise ExcelImportError("La colonne NIU doit apparaître une seule fois, même après suppression des espaces superflus.")
         try:
             mapping = build_column_mapping(headers)
         except MappingError as exc:
@@ -111,6 +127,7 @@ def inspect_workbook(filepath, sheet_name=None, header_row=None):
             "max_column": worksheet.max_column,
             "headers": headers,
             "mapping": mapping,
+            "identity_positions": _identity_positions(headers),
         }
     finally:
         workbook.close()
@@ -170,10 +187,7 @@ def import_workbook(filepath, original_filename, sheet_name=None, header_row=Non
         .all()
     )
 
-    header_positions = {}
-    for field, header in IDENTITY_HEADERS.items():
-        matches = [index + 1 for index, value in enumerate(metadata["headers"]) if value == header]
-        header_positions[field] = matches[0] if len(matches) == 1 else None
+    header_positions = metadata["identity_positions"]
 
     imported_rows = 0
     try:

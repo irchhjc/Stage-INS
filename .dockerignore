@@ -1,0 +1,17 @@
+.git
+.gitignore
+.claude
+.codex
+.agents
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+instance
+tests
+*.log
+.env
+.env.*
+.local-server.ps1
+dsf.xlsx
+backups

@@ -1,0 +1,151 @@
+name: CI/CD production
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dsf-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  tests:
+    name: Tests Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v7
+
+      - name: Installer Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements-prod.txt
+            requirements-dev.txt
+
+      - name: Installer les dependances
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-prod.txt -r requirements-dev.txt
+
+      - name: Executer les tests hors navigateur
+        run: python -m pytest -q tests --ignore=tests/e2e
+
+  e2e:
+    name: Test navigateur
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v7
+
+      - name: Installer Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements-prod.txt
+            requirements-dev.txt
+
+      - name: Installer les dependances
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-prod.txt -r requirements-dev.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Executer le parcours navigateur
+        run: python -m pytest -q tests/e2e
+
+  image:
+    name: Construction Docker
+    runs-on: ubuntu-latest
+    needs: tests
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v7
+
+      - name: Construire l'image de production
+        run: docker build --pull --tag dsf-control:${{ github.sha }} .
+
+  deploy:
+    name: Deploiement VPS
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [tests, e2e, image]
+    environment:
+      name: production
+      url: https://srv2013685.hstgr.cloud
+    concurrency:
+      group: dsf-production
+      cancel-in-progress: false
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+      VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+      VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+    steps:
+      - name: Recuperer le depot
+        uses: actions/checkout@v7
+
+      - name: Verifier les secrets de deploiement
+        shell: bash
+        run: |
+          set -eu
+          for name in VPS_HOST VPS_USER VPS_SSH_PRIVATE_KEY VPS_KNOWN_HOSTS; do
+            if [ -z "${!name:-}" ]; then
+              echo "Secret GitHub absent: $name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Configurer SSH
+        shell: bash
+        run: |
+          set -eu
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+      - name: Synchroniser le code sans les donnees privees
+        shell: bash
+        run: |
+          set -eu
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.env.production' \
+            --exclude '.env.production.local' \
+            --exclude '.venv/' \
+            --exclude '.pytest_cache/' \
+            --exclude '__pycache__/' \
+            --exclude '*.pyc' \
+            --exclude '.local-server.ps1' \
+            --exclude 'instance/' \
+            --exclude 'backups/' \
+            --exclude 'migration_bundle_*/' \
+            --exclude '*.tar.gz' \
+            -e "ssh -i $HOME/.ssh/id_ed25519 -o IdentitiesOnly=yes" \
+            ./ "$VPS_USER@$VPS_HOST:/opt/dsf-control/"
+
+      - name: Sauvegarder puis deployer
+        shell: bash
+        run: |
+          set -eu
+          ssh -i "$HOME/.ssh/id_ed25519" -o IdentitiesOnly=yes \
+            "$VPS_USER@$VPS_HOST" \
+            'cd /opt/dsf-control && chmod 755 deploy/*.sh && ./deploy/ci_deploy.sh'
+
+      - name: Verifier le service public
+        run: curl --fail --show-error --silent --retry 10 --retry-delay 3 https://srv2013685.hstgr.cloud/healthz

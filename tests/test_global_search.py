@@ -34,7 +34,7 @@ def test_admin_only_and_literal_search(client):
     users,_,_=seed()
     assert 'Aucune DSF' in client.get('/admin/search?q=%25').get_data(as_text=True)
     with client.session_transaction() as s:s['user_id']=users[0].id
-    assert client.get('/admin/search').status_code == 403
+    assert client.get('/admin/search').status_code == 200
 
 
 def test_pagination_preserves_filters(client):

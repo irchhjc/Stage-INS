@@ -1,7 +1,6 @@
 import io
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from zipfile import ZipFile
 
 from openpyxl import load_workbook
 from sqlalchemy import text
@@ -267,19 +266,28 @@ def test_admin_global_export_includes_all_workbooks_and_controllers(client, impo
 
     exported = client.post("/export/all-completed")
     assert exported.status_code == 200
-    assert exported.mimetype == "application/zip"
-    with ZipFile(io.BytesIO(exported.data)) as archive:
-        workbook_names = sorted(name for name in archive.namelist() if name.endswith(".xlsx"))
-        assert len(workbook_names) == 2
-        assert any(name.startswith(f"classeur_{imported_session.id}_") for name in workbook_names)
-        assert any(name.startswith(f"classeur_{second_session.id}_") for name in workbook_names)
-        for workbook_name in workbook_names:
-            workbook = load_workbook(io.BytesIO(archive.read(workbook_name)), data_only=False)
-            worksheet = workbook["DONNEES"]
-            assert worksheet.max_row == 2
-            assert worksheet.cell(2, 1).value == "DSF-001"
-            assert "JOURNAL_CONTROLE" in workbook.sheetnames
-            workbook.close()
+    assert exported.mimetype == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    assert ".xlsx" in exported.headers["Content-Disposition"]
+    workbook = load_workbook(io.BytesIO(exported.data), data_only=False)
+    data_sheets = [
+        sheet
+        for sheet in workbook.worksheets
+        if sheet.title not in {"JOURNAL_CONTROLE", "CORRECTIONS_DETAIL"}
+    ]
+    assert len(data_sheets) == 1
+    worksheet = data_sheets[0]
+    assert worksheet.title == "DSF_TERMINEES"
+    assert worksheet.max_row == 3
+    assert [worksheet.cell(row, 1).value for row in (2, 3)] == ["DSF-001", "DSF-001"]
+    journal = workbook["JOURNAL_CONTROLE"]
+    assert journal.cell(1, 1).value == "Feuille exportée"
+    assert journal.cell(1, 3).value == "Classeur source"
+    assert {journal.cell(row, 3).value for row in range(2, journal.max_row + 1)} == {
+        imported_session.filename,
+        second_session.filename,
+    }
+    assert workbook["CORRECTIONS_DETAIL"].max_row == 1
+    workbook.close()
 
     client.post("/auth/logout")
     client.post(
