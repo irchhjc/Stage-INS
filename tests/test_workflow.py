@@ -469,6 +469,16 @@ def test_admin_creates_assigns_and_restricts_controller_access(client, imported_
     workbook.close()
 
 
+def test_admin_dashboard_uses_stable_section_tabs(client, imported_session):
+    overview = client.get("/admin/").get_data(as_text=True)
+    assignments = client.get("/admin/?tab=assignments").get_data(as_text=True)
+    invalid = client.get("/admin/?tab=unknown").get_data(as_text=True)
+
+    assert 'class="nav-link active" id="overview-tab"' in overview
+    assert 'class="nav-link active" id="assignments-tab"' in assignments
+    assert 'class="nav-link active" id="overview-tab"' in invalid
+
+
 def test_global_dashboard_export_disabled_when_empty(client):
     import re
     html = client.get("/").get_data(as_text=True)

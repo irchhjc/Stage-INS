@@ -267,6 +267,9 @@ body {
 }
 
 @media (max-width: 767.98px) {
+  .admin-tabs { position: static; overflow-x: auto; }
+  .admin-tabs .nav { display: flex; width: max-content; min-width: 100%; }
+  .admin-tabs .nav-link { min-width: 178px; }
   .institution-ribbon, .institution-ribbon-inner { min-height: 70px; }
   .institution-ribbon-inner { gap: .5rem; }
   .ins-logo-shell { width: 44px; height: 44px; }
