@@ -217,7 +217,7 @@
 <div class="tab-pane fade {{ 'show active' if active_tab == 'assignments' else '' }}" id="assignments-pane" role="tabpanel" aria-labelledby="assignments-tab" tabindex="0">
 <div class="card panel-card mt-4">
   <div class="card-header bg-white border-0 p-4 pb-2">
-    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h2 class="h5 mb-1">Affecter les DSF</h2><p class="small text-secondary mb-0">Une DSF non assignée est visible uniquement par l'administrateur.</p></div>
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h2 class="h5 mb-1">Affecter les DSF</h2><p class="small text-secondary mb-0">Les DSF libres sont visibles par tous les contrôleurs. Seul le contrôleur qui la prend en charge peut la modifier.</p></div>
       {% if sessions %}<select id="adminSessionSelector" class="form-select session-selector">{% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} — {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}</select>{% endif %}
     </div>
     {% if active_session %}

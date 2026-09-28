@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import func, or_
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import AuditLog, DSF, DSFValue, FicheStatus, ImportColumn
@@ -246,12 +247,14 @@ def dashboard_stats(import_session_id=None, assigned_to_id=None):
     }
 
 
-def search_dsfs(term, status=None, import_session_id=None, assigned_to_id=None):
-    query = DSF.query
+def search_dsfs(term, status=None, import_session_id=None, assigned_to_id=None, statuses=None):
+    query = DSF.query.options(joinedload(DSF.assignee))
     if import_session_id:
         query = query.filter_by(import_session_id=import_session_id)
     if assigned_to_id is not None:
         query = query.filter_by(assigned_to_id=assigned_to_id)
+    if statuses:
+        query = query.filter(DSF.status.in_(statuses))
     if status == "anomalies":
         query = query.filter(DSF.anomaly_count > 0)
     elif status in {"not_started", "in_progress", "completed"}:

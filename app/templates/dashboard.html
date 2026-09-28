@@ -21,8 +21,8 @@
     {% if active_session %}
     <form method="post" action="{{ url_for('export_excel.export_workbook', import_session_id=active_session.id) }}">
       <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button class="btn {{ 'btn-outline-success' if current_user.is_admin else 'btn-success' }}" type="submit" {{ 'disabled' if stats.completed == 0 else '' }}>
-        {{ 'Exporter les terminées de ce classeur' if current_user.is_admin else 'Exporter mes DSF terminées' }} ({{ stats.completed }})
+      <button class="btn {{ 'btn-outline-success' if current_user.is_admin else 'btn-success' }}" type="submit" {{ 'disabled' if export_completed_count == 0 else '' }}>
+        {{ 'Exporter les terminées de ce classeur' if current_user.is_admin else 'Exporter mes DSF terminées' }} ({{ export_completed_count }})
       </button>
     </form>
     {% endif %}
@@ -32,9 +32,9 @@
 {% if not active_session %}
 <div class="empty-state mt-4">
   <div class="empty-icon">DSF</div>
-  <h2>{{ 'Aucun classeur importé' if current_user.is_admin else 'Aucune DSF assignée' }}</h2>
+  <h2>Aucun classeur importé</h2>
   {% if current_user.is_admin %}<p>Importez le fichier présent dans le dossier ou choisissez un autre classeur .xlsx.</p><a class="btn btn-primary" href="{{ url_for('import_excel.import_page') }}">Commencer l'import</a>
-  {% else %}<p>L'administrateur doit vous assigner au moins une DSF avant que vous puissiez commencer le contrôle.</p>{% endif %}
+  {% else %}<p>Les DSF importées apparaîtront ici et pourront être prises en charge.</p>{% endif %}
 </div>
 {% else %}
 <div class="row g-3 mt-2 metric-grid">

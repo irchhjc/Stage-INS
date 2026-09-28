@@ -108,7 +108,8 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         _login(page, base_url, "controleur", "motdepasse10")
         expect(page.get_by_role("link", name="Mes DSF")).to_be_visible()
         expect(page.get_by_text("DSF-001", exact=True)).to_be_visible()
-        expect(page.get_by_text("DSF-002", exact=True)).to_have_count(0)
+        expect(page.get_by_text("DSF-002", exact=True)).to_be_visible()
+        expect(page.get_by_text("Utilisée par controleur2", exact=True)).to_be_visible()
 
         forbidden_response = page.goto(f"{base_url}{forbidden_href}")
         assert forbidden_response.status == 403
