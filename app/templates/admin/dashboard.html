@@ -165,8 +165,8 @@
 </section>
 
 <div class="row g-4 mt-1">
-  <div class="col-xl-4">
-    <div class="card panel-card h-100"><div class="card-body p-4">
+  <div class="col-xl-4 d-flex flex-column gap-4">
+    <div class="card panel-card"><div class="card-body p-4">
       <h2 class="h5">Créer un contrôleur</h2>
       <p class="small text-secondary">Le nom doit être en minuscules et le mot de passe comporter au moins 10 caractères.</p>
       <form method="post" action="{{ url_for('admin.create_controller') }}">
@@ -175,6 +175,20 @@
         <div class="mb-3"><label class="form-label" for="newUsername">Nom d'utilisateur</label><input id="newUsername" name="username" class="form-control" pattern="[a-z0-9._-]{3,50}" minlength="3" maxlength="50" required autocapitalize="none" spellcheck="false"></div>
         <div class="mb-3"><label class="form-label" for="newPassword">Mot de passe</label><input id="newPassword" name="password" type="password" class="form-control" minlength="10" required autocomplete="new-password"></div>
         <button class="btn btn-success w-100">Créer le compte</button>
+      </form>
+    </div></div>
+    <div class="card panel-card"><div class="card-body p-4">
+      <h2 class="h5">Importer des contrôleurs</h2>
+      <p class="small text-secondary mb-2">Créez plusieurs comptes depuis un fichier Excel contenant les colonnes <strong>NOM COMPLET</strong>, <strong>NOM UTILISATEUR</strong> et <strong>MOT DE PASSE</strong>.</p>
+      <p class="small text-secondary">Les mots de passe doivent contenir au moins 10 caractères. Ils sont immédiatement hachés et ne sont jamais affichés dans l'application. Les lignes valides sont créées et les autres sont signalées dans le bilan.</p>
+      <a class="btn btn-outline-primary w-100 mb-3" href="{{ url_for('admin.download_controller_template') }}">Télécharger le modèle Excel</a>
+      <form method="post" action="{{ url_for('admin.import_controller_accounts') }}" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3">
+          <label class="form-label" for="controllerImportFile">Fichier des contrôleurs</label>
+          <input id="controllerImportFile" name="file" type="file" class="form-control" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+        </div>
+        <button class="btn btn-success w-100" type="submit">Importer les comptes</button>
       </form>
     </div></div>
   </div>

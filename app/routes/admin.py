@@ -1,9 +1,10 @@
 from datetime import datetime, timezone
+from pathlib import Path
 
 from sqlalchemy import update, or_
 from sqlalchemy.orm import joinedload
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
@@ -11,6 +12,11 @@ from app.services.admin_dashboard_service import build_admin_performance, build_
 from app.services.auth_service import admin_required, login_required, create_user, current_user, normalize_full_name
 from app.services.dsf_service import search_dsfs
 from app.services.activity_service import activity_groups
+from app.services.controller_import_service import (
+    ControllerImportError,
+    build_controller_import_template,
+    import_controllers,
+)
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -96,6 +102,51 @@ def create_controller():
         flash(f"Le compte {user.username} a été créé.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
+    return redirect(url_for("admin.dashboard", tab="controllers"))
+
+
+@admin_bp.get("/users/import-template")
+@admin_required
+def download_controller_template():
+    return send_file(
+        build_controller_import_template(),
+        as_attachment=True,
+        download_name="modele_import_controleurs.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@admin_bp.post("/users/import")
+@admin_required
+def import_controller_accounts():
+    upload = request.files.get("file")
+    if not upload or not upload.filename:
+        flash("Sélectionnez un fichier Excel .xlsx.", "danger")
+        return redirect(url_for("admin.dashboard", tab="controllers"))
+    if Path(upload.filename).suffix.casefold() != ".xlsx":
+        flash("Seuls les fichiers Excel .xlsx sont acceptés.", "danger")
+        return redirect(url_for("admin.dashboard", tab="controllers"))
+
+    try:
+        result = import_controllers(upload.stream)
+    except ControllerImportError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+        return redirect(url_for("admin.dashboard", tab="controllers"))
+    except Exception:
+        db.session.rollback()
+        raise
+
+    if result.created_count:
+        flash(f"{result.created_count} compte(s) contrôleur créé(s).", "success")
+    if result.rejected_count:
+        details = " ".join(result.rejected_errors[:10])
+        remaining = result.rejected_count - min(result.rejected_count, 10)
+        if remaining:
+            details += f" {remaining} autre(s) ligne(s) rejetée(s)."
+        flash(f"{result.rejected_count} ligne(s) rejetée(s). {details}", "warning")
+    if result.ignored_blank_rows:
+        flash(f"{result.ignored_blank_rows} ligne(s) vide(s) ignorée(s).", "info")
     return redirect(url_for("admin.dashboard", tab="controllers"))
 
 
