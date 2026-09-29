@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import update, or_
+from sqlalchemy import delete, update, or_
 from sqlalchemy.orm import joinedload
 
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
@@ -54,6 +54,27 @@ def _controller_progress(controllers):
     return rows
 
 
+def _controller_deletion_summary():
+    controller_ids = [
+        controller_id
+        for (controller_id,) in db.session.query(User.id).filter(User.role == "controller").all()
+    ]
+    if not controller_ids:
+        return {
+            "controllers": 0,
+            "assigned": 0,
+            "in_progress": 0,
+            "completed": 0,
+        }
+    assigned = DSF.query.filter(DSF.assigned_to_id.in_(controller_ids))
+    return {
+        "controllers": len(controller_ids),
+        "assigned": assigned.count(),
+        "in_progress": assigned.filter(DSF.status == "in_progress").count(),
+        "completed": assigned.filter(DSF.status == "completed").count(),
+    }
+
+
 @admin_bp.get("/")
 @admin_required
 def dashboard():
@@ -98,6 +119,7 @@ def dashboard():
         selected_status=status,
         performance=performance,
         active_tab=active_tab,
+        controller_deletion_summary=_controller_deletion_summary(),
     )
 
 
@@ -127,6 +149,69 @@ def update_controller(controller_id):
     except ValueError as exc:
         db.session.rollback()
         flash(str(exc), "danger")
+    return redirect(url_for("admin.dashboard", tab="controllers", _anchor="controllerAccounts"))
+
+
+@admin_bp.post("/controllers/delete-all")
+@admin_required
+def delete_all_controllers():
+    if request.form.get("confirmation") != "DELETE_ALL_CONTROLLERS":
+        flash("Confirmation invalide. Aucun compte contrôleur n'a été supprimé.", "danger")
+        return redirect(url_for("admin.dashboard", tab="controllers", _anchor="deleteControllers"))
+
+    controller_rows = (
+        db.session.query(User.id, User.username)
+        .filter(User.role == "controller")
+        .order_by(User.id)
+        .all()
+    )
+    if not controller_rows:
+        flash("Aucun compte contrôleur à supprimer.", "info")
+        return redirect(url_for("admin.dashboard", tab="controllers", _anchor="deleteControllers"))
+
+    controller_ids = [row.id for row in controller_rows]
+    usernames = {row.id: row.username for row in controller_rows}
+    assigned_rows = (
+        db.session.query(DSF.id, DSF.assigned_to_id)
+        .filter(DSF.assigned_to_id.in_(controller_ids))
+        .all()
+    )
+    administrator = current_user()
+    try:
+        for dsf_id, controller_id in assigned_rows:
+            db.session.add(
+                AuditLog(
+                    dsf_id=dsf_id,
+                    action="suppression globale des contrôleurs",
+                    old_value=usernames.get(controller_id, "Contrôleur supprimé"),
+                    new_value="Non assignée",
+                    operator=administrator.username,
+                )
+            )
+        db.session.flush()
+        db.session.execute(
+            update(DSF)
+            .where(DSF.assigned_to_id.in_(controller_ids))
+            .values(assigned_to_id=None, assigned_at=None)
+        )
+        db.session.execute(
+            update(DSF)
+            .where(DSF.assigned_by_id.in_(controller_ids))
+            .values(assigned_by_id=None)
+        )
+        deleted_count = db.session.execute(
+            delete(User).where(User.role == "controller")
+        ).rowcount
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    flash(
+        f"{deleted_count} compte(s) contrôleur supprimé(s). "
+        f"{len(assigned_rows)} affectation(s) retirée(s). Toutes les DSF ont été conservées.",
+        "success",
+    )
     return redirect(url_for("admin.dashboard", tab="controllers", _anchor="controllerAccounts"))
 
 

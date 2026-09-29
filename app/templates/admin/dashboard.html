@@ -194,6 +194,20 @@
         <button class="btn btn-success w-100" type="submit">Importer les comptes</button>
       </form>
     </div></div>
+    <div id="deleteControllers" class="card border-danger"><div class="card-body p-4">
+      <h2 class="h5 text-danger">Réinitialiser les contrôleurs</h2>
+      <p class="small text-secondary">Supprime les <strong>{{ controller_deletion_summary.controllers }}</strong> compte(s) contrôleur et retire leurs <strong>{{ controller_deletion_summary.assigned }}</strong> affectation(s), dont {{ controller_deletion_summary.in_progress }} en cours et {{ controller_deletion_summary.completed }} terminée(s).</p>
+      <p class="small mb-3"><strong>Les DSF, statuts, corrections et historiques sont conservés.</strong> Les comptes administrateurs ne sont pas concernés.</p>
+      <form method="post" action="{{ url_for('admin.delete_all_controllers') }}" onsubmit="return window.confirm('Supprimer définitivement tous les comptes contrôleurs ? Les DSF seront conservées mais deviendront non affectées.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="confirmation" value="DELETE_ALL_CONTROLLERS">
+        <div class="form-check mb-3">
+          <input id="confirmDeleteControllers" class="form-check-input" type="checkbox" required {{ 'disabled' if controller_deletion_summary.controllers == 0 else '' }}>
+          <label class="form-check-label small" for="confirmDeleteControllers">Je confirme la suppression de tous les comptes contrôleurs.</label>
+        </div>
+        <button class="btn btn-danger w-100" type="submit" {{ 'disabled' if controller_deletion_summary.controllers == 0 else '' }}>Supprimer tous les contrôleurs</button>
+      </form>
+    </div></div>
   </div>
   <div class="col-xl-8">
     <div class="card panel-card h-100"><div class="card-body p-4">
