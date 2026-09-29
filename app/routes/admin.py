@@ -9,7 +9,14 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, s
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
 from app.services.admin_dashboard_service import build_admin_performance, build_controller_daily_stats
-from app.services.auth_service import admin_required, login_required, create_user, current_user, normalize_full_name
+from app.services.auth_service import (
+    admin_required,
+    create_user,
+    current_user,
+    login_required,
+    normalize_full_name,
+    update_controller_account,
+)
 from app.services.dsf_service import search_dsfs
 from app.services.activity_service import activity_groups
 from app.services.controller_import_service import (
@@ -103,6 +110,24 @@ def create_controller():
     except ValueError as exc:
         flash(str(exc), "danger")
     return redirect(url_for("admin.dashboard", tab="controllers"))
+
+
+@admin_bp.post("/controllers/<int:controller_id>/account")
+@admin_required
+def update_controller(controller_id):
+    controller = db.get_or_404(User, controller_id)
+    try:
+        update_controller_account(
+            controller,
+            request.form.get("username"),
+            full_name=request.form.get("full_name"),
+            new_password=request.form.get("new_password"),
+        )
+        flash(f"Le compte {controller.username} a été mis à jour.", "success")
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    return redirect(url_for("admin.dashboard", tab="controllers", _anchor="controllerAccounts"))
 
 
 @admin_bp.get("/users/import-template")

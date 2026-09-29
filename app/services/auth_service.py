@@ -2,6 +2,7 @@ import re
 from functools import wraps
 
 from flask import abort, g, redirect, request, session, url_for
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.models import DSF, User
@@ -11,7 +12,7 @@ USERNAME_PATTERN = re.compile(r"^[a-z0-9._-]{3,50}$")
 MIN_PASSWORD_LENGTH = 10
 
 
-def validate_new_user(username, password):
+def normalize_username(username):
     username = (username or "").strip()
     if username != username.lower():
         raise ValueError("Le nom d'utilisateur doit être entièrement en minuscules.")
@@ -19,8 +20,17 @@ def validate_new_user(username, password):
         raise ValueError(
             "Le nom d'utilisateur doit contenir 3 à 50 caractères : lettres minuscules, chiffres, point, tiret ou soulignement."
         )
+    return username
+
+
+def validate_password(password):
     if len(password or "") < MIN_PASSWORD_LENGTH:
         raise ValueError("Le mot de passe doit contenir au moins 10 caractères.")
+
+
+def validate_new_user(username, password):
+    username = normalize_username(username)
+    validate_password(password)
     return username
 
 
@@ -41,6 +51,34 @@ def create_user(username, password, role="controller", full_name=None):
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
+    return user
+
+
+def update_controller_account(user, username, full_name=None, new_password=None):
+    if user.role != "controller":
+        raise ValueError("Seuls les comptes contrôleurs peuvent être modifiés ici.")
+
+    normalized_username = normalize_username(username)
+    normalized_full_name = normalize_full_name(full_name)
+    password = new_password or ""
+    if password:
+        validate_password(password)
+    duplicate = User.query.filter(
+        User.username == normalized_username,
+        User.id != user.id,
+    ).first()
+    if duplicate:
+        raise ValueError("Ce nom d'utilisateur existe déjà.")
+
+    user.username = normalized_username
+    user.full_name = normalized_full_name
+    if password:
+        user.set_password(password)
+    try:
+        db.session.commit()
+    except IntegrityError as exc:
+        db.session.rollback()
+        raise ValueError("Ce nom d'utilisateur existe déjà.") from exc
     return user
 
 

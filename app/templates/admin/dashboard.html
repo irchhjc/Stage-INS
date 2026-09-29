@@ -144,21 +144,24 @@
 
 </div>
 <div class="tab-pane fade {{ 'show active' if active_tab == 'controllers' else '' }}" id="controllers-pane" role="tabpanel" aria-labelledby="controllers-tab" tabindex="0">
-<section id="accountNames" class="card panel-card mt-4" aria-labelledby="accountNamesTitle">
+<section id="controllerAccounts" class="card panel-card mt-4" aria-labelledby="controllerAccountsTitle">
   <div class="card-body p-4">
-    <h2 id="accountNamesTitle" class="h5">Noms complets des utilisateurs</h2>
-    <p class="small text-secondary">Associez un nom complet à chaque compte existant. Les identifiants, mots de passe et affectations sont conservés.</p>
+    <h2 id="controllerAccountsTitle" class="h5">Gestion des comptes utilisateurs</h2>
+    <p class="small text-secondary">Modifiez le nom complet, l'identifiant et, si nécessaire, le mot de passe d'un contrôleur. Laissez le nouveau mot de passe vide pour conserver l'actuel. Les affectations restent liées au même compte.</p>
     <div class="table-responsive"><table class="table align-middle">
-      <thead><tr><th>Nom d'utilisateur</th><th>Rôle</th><th>Compte</th><th>Nom complet</th></tr></thead>
+      <thead><tr><th>Rôle et état</th><th>Nom complet</th><th>Nom d'utilisateur</th><th>Nouveau mot de passe</th><th>Action</th></tr></thead>
       <tbody>{% for account in account_users %}<tr>
-        <td>{{ account.username }}</td><td>{{ 'Administrateur' if account.is_admin else 'Contrôleur' }}</td>
-        <td>{{ 'Actif' if account.is_active else 'Désactivé' }}</td>
-        <td><form class="d-flex gap-2" method="post" action="{{ url_for('admin.update_full_name', user_id=account.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <label class="visually-hidden" for="fullName{{ account.id }}">Nom complet de {{ account.username }}</label>
-          <input id="fullName{{ account.id }}" name="full_name" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom">
-          <button class="btn btn-outline-primary" type="submit">Enregistrer</button>
-        </form></td>
+        <td><strong>{{ 'Administrateur' if account.is_admin else 'Contrôleur' }}</strong><small class="d-block text-secondary">{{ 'Actif' if account.is_active else 'Désactivé' }}</small></td>
+        {% if account.is_admin %}
+        <td><label class="visually-hidden" for="fullName{{ account.id }}">Nom complet de {{ account.username }}</label><input id="fullName{{ account.id }}" name="full_name" form="accountName{{ account.id }}" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom"></td>
+        <td>{{ account.username }}</td><td class="text-secondary">Non modifié ici</td>
+        <td><form id="accountName{{ account.id }}" method="post" action="{{ url_for('admin.update_full_name', user_id=account.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-outline-primary" type="submit">Enregistrer le nom</button></form></td>
+        {% else %}
+        <td><label class="visually-hidden" for="controllerFullName{{ account.id }}">Nom complet de {{ account.username }}</label><input id="controllerFullName{{ account.id }}" name="full_name" form="controllerAccount{{ account.id }}" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom"></td>
+        <td><label class="visually-hidden" for="controllerUsername{{ account.id }}">Nom d'utilisateur de {{ account.username }}</label><input id="controllerUsername{{ account.id }}" name="username" form="controllerAccount{{ account.id }}" class="form-control" pattern="[a-z0-9._-]{3,50}" minlength="3" maxlength="50" value="{{ account.username }}" required autocapitalize="none" spellcheck="false"></td>
+        <td><label class="visually-hidden" for="controllerPassword{{ account.id }}">Nouveau mot de passe de {{ account.username }}</label><input id="controllerPassword{{ account.id }}" name="new_password" form="controllerAccount{{ account.id }}" type="password" class="form-control" minlength="10" autocomplete="new-password" placeholder="Conserver l'actuel"></td>
+        <td><form id="controllerAccount{{ account.id }}" method="post" action="{{ url_for('admin.update_controller', controller_id=account.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit">Mettre à jour</button></form></td>
+        {% endif %}
       </tr>{% endfor %}</tbody>
     </table></div>
   </div>

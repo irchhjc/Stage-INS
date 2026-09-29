@@ -73,8 +73,8 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         expect(page.locator("#performanceDateFrom")).to_be_visible()
         expect(page.locator("#performanceDateTo")).to_be_visible()
         page.locator("#controllers-tab").click()
-        page.get_by_label("Nom d'utilisateur").fill("controleur")
-        page.get_by_label("Mot de passe").fill("motdepasse10")
+        page.get_by_label("Nom d'utilisateur", exact=True).fill("controleur")
+        page.get_by_label("Mot de passe", exact=True).fill("motdepasse10")
         page.get_by_role("button", name="Créer le compte").click()
         expect(page.get_by_text("Le compte controleur a été créé.")).to_be_visible()
 
@@ -91,8 +91,8 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         expect(assigned_row.locator("select[name=user_id]")).to_have_count(0)
 
         page.locator("#controllers-tab").click()
-        page.get_by_label("Nom d'utilisateur").fill("controleur2")
-        page.get_by_label("Mot de passe").fill("motdepasse20")
+        page.get_by_label("Nom d'utilisateur", exact=True).fill("controleur2")
+        page.get_by_label("Mot de passe", exact=True).fill("motdepasse20")
         page.get_by_role("button", name="Créer le compte").click()
         expect(page.get_by_text("Le compte controleur2 a été créé.")).to_be_visible()
         page.locator("#assignments-tab").click()
