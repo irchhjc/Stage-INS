@@ -12,7 +12,6 @@ from app.models import DSF
 
 CONFIRMATION_TOKEN = "DELETE_NON_COMPLETED_DUPLICATES"
 KEY_MODES = ("niu-year", "numero-dsf", "niu-year-numero")
-POLICIES = ("completed-only", "keep-best")
 
 
 def _normalize(value):
@@ -45,19 +44,7 @@ class DuplicateGroup:
     unassigned_count: int
 
 
-def _survivor_rank(dsf):
-    status_priority = {"completed": 3, "in_progress": 2, "not_started": 1}
-    return (
-        status_priority.get(dsf.status, 0),
-        dsf.assigned_to_id is not None,
-        float(dsf.progress or 0),
-        -dsf.id,
-    )
-
-
-def analyze_duplicates(dsfs, key_mode="niu-year", policy="completed-only"):
-    if policy not in POLICIES:
-        raise ValueError(f"Politique inconnue : {policy}")
+def analyze_duplicates(dsfs, key_mode="niu-year"):
     grouped = defaultdict(list)
     ignored = 0
     for dsf in dsfs:
@@ -75,10 +62,6 @@ def analyze_duplicates(dsfs, key_mode="niu-year", policy="completed-only"):
         if completed:
             kept = completed
             candidates = [row for row in rows if row.status != "completed"]
-        elif policy == "keep-best":
-            survivor = max(rows, key=_survivor_rank)
-            kept = [survivor]
-            candidates = [row for row in rows if row.id != survivor.id]
         else:
             kept = rows
             candidates = []
@@ -101,9 +84,9 @@ def analyze_duplicates(dsfs, key_mode="niu-year", policy="completed-only"):
     return duplicate_groups, ignored
 
 
-def build_report(dsfs, key_mode="niu-year", policy="completed-only", detail_limit=20):
+def build_report(dsfs, key_mode="niu-year", detail_limit=20):
     rows = list(dsfs)
-    groups, ignored = analyze_duplicates(rows, key_mode, policy)
+    groups, ignored = analyze_duplicates(rows, key_mode)
     groups_with_completed = [group for group in groups if group.completed_ids]
     groups_without_completed = [group for group in groups if not group.completed_ids]
     candidate_ids = [
@@ -121,16 +104,14 @@ def build_report(dsfs, key_mode="niu-year", policy="completed-only", detail_limi
 
     return {
         "key_mode": key_mode,
-        "policy": policy,
+        "policy": "completed-only",
         "total_dsfs": len(rows),
         "rows_ignored_for_incomplete_key": ignored,
         "duplicate_groups": len(groups),
         "duplicate_rows": sum(len(group.ids) for group in groups),
         "groups_with_completed_dsf": len(groups_with_completed),
         "groups_without_completed_dsf": len(groups_without_completed),
-        "groups_without_completed_dsf_protected": (
-            len(groups_without_completed) if policy == "completed-only" else 0
-        ),
+        "groups_without_completed_dsf_protected": len(groups_without_completed),
         "deletion_candidates": len(candidate_ids),
         "assigned_deletion_candidates": len(assigned_candidates),
         "unassigned_deletion_candidates": len(candidate_ids) - len(assigned_candidates),
@@ -149,15 +130,6 @@ def _arguments():
         )
     )
     parser.add_argument("--key", choices=KEY_MODES, default="niu-year")
-    parser.add_argument(
-        "--policy",
-        choices=POLICIES,
-        default="completed-only",
-        help=(
-            "completed-only protège les groupes sans DSF terminée ; keep-best conserve une seule "
-            "DSF dans ces groupes, par priorité de statut, affectation, progression puis ancienneté."
-        ),
-    )
     parser.add_argument("--limit", type=int, default=20, help="Nombre maximal de groupes détaillés.")
     parser.add_argument("--json", action="store_true", help="Produit un rapport JSON.")
     parser.add_argument("--apply", action="store_true", help="Applique la suppression transactionnelle.")
@@ -190,7 +162,6 @@ def main():
         report = build_report(
             dsfs,
             key_mode=args.key,
-            policy=args.policy,
             detail_limit=max(0, args.limit),
         )
 
