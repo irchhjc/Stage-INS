@@ -233,14 +233,21 @@ body {
 .accounting-table-wrap { width: 100%; min-height: 430px; max-height: calc(100vh - 278px); }
 .header-collapsed .accounting-table-wrap { max-height: calc(100vh - 132px); }
 .focus-mode .accounting-table-wrap { min-height: calc(100vh - 150px); max-height: calc(100vh - 102px); }
-.accounting-table { width: 100%; min-width: 820px; font-size: .82rem; }
+.accounting-table { width: 100%; min-width: 680px; font-size: .82rem; }
+.accounting-table.measure-columns-1 { min-width: 560px; }
+.accounting-table.measure-columns-2 { min-width: 720px; }
+.accounting-table.measure-columns-3 { min-width: 870px; }
+.accounting-table.measure-columns-4 { min-width: 1010px; }
 .accounting-table thead { position: sticky; top: 0; z-index: 7; }
 .accounting-table th, .accounting-table td { border-right: 1px solid #e7ebef; }
 .accounting-table .poste-column { min-width: 250px; left: 0; z-index: 9; }
 .poste-cell { position: sticky; left: 0; z-index: 5; min-width: 250px; max-width: 360px; background: #fff !important; font-weight: 620; color: #263b4d; }
 .row-action-column, .row-actions { min-width: 85px; text-align: center; }
-.value-cell { position: relative; min-width: 235px; padding: .35rem !important; background: #fff; transition: background .12s ease; }
+.value-cell { position: relative; min-width: 210px; padding: .35rem !important; background: #fff; transition: background .12s ease; }
 .cell-editor { display: grid; grid-template-columns: minmax(110px, 1fr) auto; align-items: center; gap: .4rem; min-width: 0; }
+.measure-columns-3 .value-cell, .measure-columns-4 .value-cell { min-width: 165px; }
+.measure-columns-3 .cell-editor, .measure-columns-4 .cell-editor { grid-template-columns: minmax(120px, 1fr); }
+.measure-columns-3 .cell-actions, .measure-columns-4 .cell-actions { justify-self: end; }
 .value-input { box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid transparent; border-radius: 7px; background: transparent; text-align: right; font-variant-numeric: tabular-nums; padding: .5rem .45rem; color: #1d2733; }
 .value-input:hover { border-color: #cbd6e2; }
 .value-input:focus { outline: 2px solid rgba(31,111,235,.26); border-color: var(--blue); background: #fff; }

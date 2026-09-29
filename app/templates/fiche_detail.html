@@ -72,7 +72,7 @@
           <div id="section-body-{{ section.number }}" class="accordion-collapse collapse {{ 'show' if loop.first else '' }}">
             <div class="accordion-body p-0">
               <div class="table-responsive accounting-table-wrap">
-                <table class="table accounting-table align-middle mb-0">
+                <table class="table accounting-table measure-columns-{{ section.column_count }} align-middle mb-0">
                   <thead><tr><th class="poste-column">Poste</th>{% for slot in section.slots %}<th>{{ slot.label }}</th>{% endfor %}<th class="row-action-column">Contrôle</th></tr></thead>
                   <tbody>
                   {% for row in section.rows %}

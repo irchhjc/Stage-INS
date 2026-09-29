@@ -65,6 +65,16 @@ def split_variable_name(variable_name):
         return text, "Valeur"
     poste = match.group(1).strip()
     measure = match.group(2).strip()
+
+    # Quelques en-têtes du schéma officiel contiennent un suffixe technique
+    # supplémentaire, par exemple ``(NET_N) (N)`` ou
+    # ``(BRUT) (IMMO_INC_BRUT)``. Le premier suffixe décrit la vraie colonne
+    # comptable ; le second ne doit pas créer une nouvelle ligne ou mesure.
+    prior_match = re.match(r"^(.*)\(([^()]*)\)\s*$", poste)
+    core_measures = {"BRUT", "AMORT/DEPREC", "NET_N", "NET_N-1", "NET_N_1"}
+    if prior_match and prior_match.group(2).strip() in core_measures:
+        poste = prior_match.group(1).strip()
+        measure = prior_match.group(2).strip()
     return poste or text, MEASURE_LABELS.get(measure, measure or "Valeur")
 
 
@@ -78,30 +88,59 @@ def build_accounting_sections(values, max_rows=30):
             groups.append(current)
         current["raw_cells"].append((measure, value))
 
-    sections = []
-    for section_number, start in enumerate(range(0, len(groups), max_rows), start=1):
-        chunk = groups[start : start + max_rows]
-        slot_order = []
-        slot_labels = {}
-        prepared_rows = []
-        for group in chunk:
-            counts = Counter()
-            cells = {}
-            for measure, value in group["raw_cells"]:
-                counts[measure] += 1
-                slot = f"{measure}#{counts[measure]}"
-                if slot not in slot_order:
-                    slot_order.append(slot)
-                    slot_labels[slot] = measure if counts[measure] == 1 else f"{measure} ({counts[measure]})"
-                cells[slot] = value
-            prepared_rows.append({"poste": group["poste"], "cells": cells})
-        sections.append(
+    prepared_groups = []
+    for group in groups:
+        counts = Counter()
+        cells = {}
+        slots = []
+        for measure, value in group["raw_cells"]:
+            counts[measure] += 1
+            slot = f"{measure}#{counts[measure]}"
+            slots.append(
+                {
+                    "key": slot,
+                    "label": measure if counts[measure] == 1 else f"{measure} ({counts[measure]})",
+                }
+            )
+            cells[slot] = value
+        prepared_groups.append(
             {
-                "number": section_number,
-                "title": "Tableau comptable" if len(groups) <= max_rows else f"Section {section_number}",
-                "slots": [{"key": slot, "label": slot_labels[slot]} for slot in slot_order],
-                "rows": prepared_rows,
+                "poste": group["poste"],
+                "cells": cells,
+                "slots": slots,
+                "signature": tuple(slot["key"] for slot in slots),
             }
         )
+
+    # Une table ne contient que des lignes ayant exactement la même structure.
+    # Cela évite qu'une question isolée ou qu'un total particulier ajoute des
+    # colonnes vides à toutes les autres lignes de la fiche.
+    sections = []
+    for group in prepared_groups:
+        current = sections[-1] if sections else None
+        if (
+            current is None
+            or current["signature"] != group["signature"]
+            or len(current["rows"]) >= max_rows
+        ):
+            current = {
+                "number": len(sections) + 1,
+                "signature": group["signature"],
+                "slots": group["slots"],
+                "rows": [],
+            }
+            sections.append(current)
+        current["rows"].append({"poste": group["poste"], "cells": group["cells"]})
+
+    for section in sections:
+        labels = [slot["label"] for slot in section["slots"]]
+        if len(sections) == 1:
+            section["title"] = "Tableau comptable"
+        elif labels == ["Valeur"]:
+            section["title"] = "Informations générales"
+        else:
+            section["title"] = f"Tableau {section['number']} — {' / '.join(labels)}"
+        section["column_count"] = len(section["slots"])
+        section.pop("signature", None)
     return sections
 

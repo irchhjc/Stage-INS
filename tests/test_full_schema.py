@@ -1,13 +1,14 @@
 import io
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
+from types import SimpleNamespace
 
 from openpyxl import Workbook, load_workbook
 
 from app.config.fiche_mapping import FICHE_DEFINITIONS
 from app.extensions import db
 from app.models import DSF, DSFValue, ImportColumn, ImportSession
-from app.services.mapping_service import normalize_label
+from app.services.mapping_service import build_accounting_sections, build_column_mapping, normalize_label
 from app.services.schema_service import (
     FULL_DSF_COLUMN_COUNT,
     FULL_DSF_SCHEMA_CODE,
@@ -20,6 +21,38 @@ HEADERS_PATH = Path(__file__).parent / "fixtures" / "new_dsf_headers_20260925.tx
 
 def _reference_headers():
     return HEADERS_PATH.read_text(encoding="utf-8-sig").strip().split("\t")
+
+
+def _reference_values_by_fiche():
+    values_by_fiche = defaultdict(list)
+    for item in build_column_mapping(_reference_headers()):
+        values_by_fiche[item["fiche_code"]].append(
+            SimpleNamespace(variable_name=item["variable_name"])
+        )
+    return values_by_fiche
+
+
+def test_bilan_actif_uses_one_complete_four_measure_table():
+    sections = build_accounting_sections(_reference_values_by_fiche()["BILAN_ACTIF"])
+
+    assert len(sections) == 1
+    assert sections[0]["column_count"] == 4
+    assert [slot["label"] for slot in sections[0]["slots"]] == [
+        "BRUT",
+        "AMORT./DÉPRÉC.",
+        "NET N",
+        "NET N-1",
+    ]
+    assert len(sections[0]["rows"]) == 29
+    assert all(len(row["cells"]) == 4 for row in sections[0]["rows"])
+
+
+def test_every_full_schema_table_contains_only_real_cells():
+    for values in _reference_values_by_fiche().values():
+        for section in build_accounting_sections(values):
+            expected_slots = {slot["key"] for slot in section["slots"]}
+            assert expected_slots
+            assert all(set(row["cells"]) == expected_slots for row in section["rows"])
 
 
 def _reference_workbook(headers):
