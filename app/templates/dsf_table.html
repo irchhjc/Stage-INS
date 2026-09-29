@@ -21,7 +21,7 @@
     </div>
   </div>
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0 dsf-table">
+    <table class="table table-hover align-middle mb-0 dsf-table data-table">
       <thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Sigle</th><th>Année</th><th>Progression</th><th>Statut</th><th>Anomalies</th><th></th></tr></thead>
       <tbody id="dsfRows">
       {% for dsf in dsfs %}
@@ -43,7 +43,7 @@
                 <button class="btn btn-sm btn-primary" type="submit">Prendre en charge</button>
               </form>
             {% else %}
-              <span class="badge text-bg-light border">Utilisée par {{ dsf.assignee.display_name }}</span>
+              <span class="badge assignment-badge">Utilisée par {{ dsf.assignee.display_name }}</span>
             {% endif %}
           </td>
         </tr>

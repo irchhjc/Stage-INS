@@ -148,7 +148,7 @@
   <div class="card-body p-4">
     <h2 id="controllerAccountsTitle" class="h5">Gestion des comptes utilisateurs</h2>
     <p class="small text-secondary">Modifiez le nom complet, l'identifiant et, si nécessaire, le mot de passe d'un contrôleur. Laissez le nouveau mot de passe vide pour conserver l'actuel. Les affectations restent liées au même compte.</p>
-    <div class="table-responsive"><table class="table align-middle">
+    <div class="table-responsive"><table class="table table-hover align-middle data-table">
       <thead><tr><th>Rôle et état</th><th>Nom complet</th><th>Nom d'utilisateur</th><th>Nouveau mot de passe</th><th>Action</th></tr></thead>
       <tbody>{% for account in account_users %}<tr>
         <td><strong>{{ 'Administrateur' if account.is_admin else 'Contrôleur' }}</strong><small class="d-block text-secondary">{{ 'Actif' if account.is_active else 'Désactivé' }}</small></td>
@@ -212,7 +212,7 @@
   <div class="col-xl-8">
     <div class="card panel-card h-100"><div class="card-body p-4">
       <h2 class="h5">Progression des contrôleurs</h2>
-      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th><th>Retrait des affectations</th></tr></thead><tbody>
+      <div class="table-responsive"><table class="table table-hover align-middle mb-0 data-table"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th><th>Retrait des affectations</th></tr></thead><tbody>
         {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.display_label }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td>
         <td>
           <form method="post" action="{{ url_for('admin.unassign_not_started', controller_id=row.user.id) }}"
@@ -269,7 +269,7 @@
     <input id="adminDsfSearch" class="form-control mt-3" placeholder="Rechercher NIU, numéro DSF, raison sociale ou contrôleur…">
     {% endif %}
   </div>
-  <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Sous-branche</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
+  <div class="table-responsive"><table class="table table-hover align-middle mb-0 data-table"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Sous-branche</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
     {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ activity[dsf.id].label }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
       {% if dsf.assignee %}<div class="assigned-lock"><span class="badge text-bg-success">✓ Affectée</span><strong>{{ dsf.assignee.display_label }}</strong><small>Affectation verrouillée</small></div>
       {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
