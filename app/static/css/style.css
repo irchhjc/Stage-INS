@@ -248,7 +248,8 @@ body {
 .measure-columns-3 .value-cell, .measure-columns-4 .value-cell { min-width: 165px; }
 .measure-columns-3 .cell-editor, .measure-columns-4 .cell-editor { grid-template-columns: minmax(120px, 1fr); }
 .measure-columns-3 .cell-actions, .measure-columns-4 .cell-actions { justify-self: end; }
-.value-input { box-sizing: border-box; width: 100%; min-width: 0; border: 1px solid transparent; border-radius: 7px; background: transparent; text-align: right; font-variant-numeric: tabular-nums; padding: .5rem .45rem; color: #1d2733; }
+.value-input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 36px; border: 1px solid #d4e0ec; border-radius: 7px; background: #fff; text-align: right; font-variant-numeric: tabular-nums; padding: .5rem .45rem; color: #1d2733; cursor: text; }
+.value-input:placeholder-shown { color: #526273; background: #f8fbff; border-color: #8fb2d8; border-style: dashed; }
 .value-input:hover { border-color: #cbd6e2; }
 .value-input:focus { outline: 2px solid rgba(31,111,235,.26); border-color: var(--blue); background: #fff; }
 .value-cell.status-verified .value-input { color: var(--green); font-weight: 650; }

@@ -83,7 +83,7 @@
                         {% if value %}
                         <td id="value-{{ value.id }}" class="value-cell status-{{ value.status }} {{ 'is-corrected' if value.corrected else '' }}" title="{{ value.variable_name }} · colonne {{ value.column.excel_column_letter }}">
                           <div class="cell-editor">
-                            <input class="value-input" type="text" value="{{ display_value(value.current_value) }}" data-raw="{{ raw_input_value(value.current_value) }}" data-value-id="{{ value.id }}" data-status="{{ value.status }}" autocomplete="off" aria-label="{{ value.variable_name }}">
+                            <input class="value-input" type="text" value="{{ display_value(value.current_value) }}" data-raw="{{ raw_input_value(value.current_value) }}" data-value-id="{{ value.id }}" data-status="{{ value.status }}" autocomplete="off" placeholder="Saisir une valeur" aria-label="{{ value.variable_name }}">
                             <div class="cell-actions" role="group" aria-label="Statut de {{ value.variable_name }}">
                               <button class="cell-action cell-action-verified" type="button" title="Vérifier" aria-label="Vérifier cette valeur" aria-pressed="{{ 'true' if value.status == 'verified' else 'false' }}" data-set-status="verified"><span aria-hidden="true">✓</span></button>
                               <button class="cell-action cell-action-anomaly" type="button" title="Signaler une anomalie" aria-label="Signaler une anomalie" aria-pressed="{{ 'true' if value.status == 'anomaly' else 'false' }}" data-set-status="anomaly"><span aria-hidden="true">!</span></button>

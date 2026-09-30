@@ -1,4 +1,5 @@
 import io
+import re
 from collections import Counter, defaultdict
 from pathlib import Path
 from types import SimpleNamespace
@@ -14,6 +15,7 @@ from app.services.schema_service import (
     FULL_DSF_SCHEMA_CODE,
     identify_schema,
 )
+from app.services.value_codec import raw_input_value
 
 
 HEADERS_PATH = Path(__file__).parent / "fixtures" / "new_dsf_headers_20260925.txt"
@@ -146,3 +148,58 @@ def test_full_1777_column_schema_is_recognized_imported_and_exported(client):
         assert exported_headers == headers
     finally:
         exported_workbook.close()
+
+
+def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
+    headers = _reference_headers()
+    response = client.post(
+        "/import/",
+        data={"file": (_reference_workbook(headers), "dsf_complete_editable.xlsx")},
+        follow_redirects=False,
+    )
+    assert response.status_code == 302
+
+    dsf = DSF.query.one()
+    columns_by_fiche = defaultdict(list)
+    for column in ImportColumn.query.order_by(ImportColumn.column_index):
+        columns_by_fiche[column.fiche_code].append(column)
+
+    rendered_value_ids = set()
+    for definition in FICHE_DEFINITIONS:
+        fiche_code = definition["code"]
+        page = client.get(f"/dsf/{dsf.id}/fiche/{fiche_code}")
+        assert page.status_code == 200
+        html = page.get_data(as_text=True)
+        inputs = re.findall(r'<input class="value-input"[^>]*>', html)
+        assert len(inputs) == len(columns_by_fiche[fiche_code])
+        assert all(" disabled" not in input_tag for input_tag in inputs)
+        assert 'class="empty-value"' not in html
+        rendered_value_ids.update(
+            int(value_id) for value_id in re.findall(r'data-value-id="(\d+)"', html)
+        )
+
+    stored_value_ids = {value.id for value in DSFValue.query.filter_by(dsf_id=dsf.id)}
+    assert rendered_value_ids == stored_value_ids
+    assert len(rendered_value_ids) == FULL_DSF_COLUMN_COUNT
+
+    target_values = (
+        DSFValue.query.join(ImportColumn)
+        .filter(
+            DSFValue.dsf_id == dsf.id,
+            ImportColumn.variable_name.ilike("Aménagement, agencements et installations%"),
+        )
+        .order_by(ImportColumn.column_index)
+        .all()
+    )
+    assert [value.column.column_index for value in target_values] == [61, 62, 63, 64]
+    assert [value.column.variable_name for value in target_values] == headers[60:64]
+
+    for index, value in enumerate(target_values, start=1):
+        update = client.patch(
+            f"/dsf/api/values/{value.id}",
+            json={"value": str(index * 100), "status": "verified"},
+        )
+        assert update.status_code == 200
+        assert update.get_json()["raw_value"] == str(index * 100)
+        db.session.refresh(value)
+        assert raw_input_value(value.current_value) == str(index * 100)
