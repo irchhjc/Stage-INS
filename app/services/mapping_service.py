@@ -78,7 +78,62 @@ def split_variable_name(variable_name):
     return poste or text, MEASURE_LABELS.get(measure, measure or "Valeur")
 
 
-def build_accounting_sections(values, max_rows=30):
+def _section_values(section):
+    for row in section["rows"]:
+        for slot in section["slots"]:
+            value = row["cells"].get(slot["key"])
+            if value is not None:
+                yield value
+
+
+def _label_note_27b_sections(sections):
+    """Donne aux blocs répétés de la note 27B leur contexte de lecture.
+
+    Les en-têtes source distinguent EFFECTIF et MASSE_SALARIALE, tandis que
+    les lignes TOTAL suivantes portent les marqueurs 1, 2 et 1+2. Les noms
+    originaux restent attachés aux valeurs ; seuls les titres et en-têtes
+    d'affichage sont rendus explicites.
+    """
+    occurrences = Counter()
+    previous_group = None
+    gender_labels = ["Hommes", "Femmes", "Total"]
+
+    for section in sections:
+        variable_names = [value.variable_name for value in _section_values(section)]
+        if any("(EFFECTIF_" in name for name in variable_names):
+            kind = "Effectifs"
+            occurrences[kind] += 1
+            previous_group = (kind, occurrences[kind])
+            section["title"] = f"{kind} — groupe {occurrences[kind]}"
+        elif any("(MASSE_SALARIALE_" in name for name in variable_names):
+            kind = "Masse salariale"
+            occurrences[kind] += 1
+            previous_group = (kind, occurrences[kind])
+            section["title"] = f"{kind} — groupe {occurrences[kind]}"
+        elif variable_names and all(normalize_label(name).startswith("total(") for name in variable_names):
+            if len(section["slots"]) == 3 and previous_group:
+                kind, group_number = previous_group
+                section["title"] = f"Total — {kind.lower()} (groupe {group_number})"
+                for slot, label in zip(section["slots"], gender_labels):
+                    slot["label"] = label
+            elif len(section["slots"]) == 9:
+                section["title"] = "Totaux — groupe 2 et ensemble (1+2)"
+                labels = [
+                    "Masse salariale 2 — Hommes",
+                    "Masse salariale 2 — Femmes",
+                    "Masse salariale 2 — Total",
+                    "Effectifs 1+2 — Hommes",
+                    "Effectifs 1+2 — Femmes",
+                    "Effectifs 1+2 — Total",
+                    "Masse salariale 1+2 — Hommes",
+                    "Masse salariale 1+2 — Femmes",
+                    "Masse salariale 1+2 — Total",
+                ]
+                for slot, label in zip(section["slots"], labels):
+                    slot["label"] = label
+
+
+def build_accounting_sections(values, max_rows=30, fiche_code=None):
     groups = []
     current = None
     for value in values:
@@ -159,5 +214,7 @@ def build_accounting_sections(values, max_rows=30):
             section["title"] = f"Tableau {section['number']} — {' / '.join(labels)}"
         section["column_count"] = len(section["slots"])
         section.pop("signature", None)
+    if fiche_code == "NOTE_27B":
+        _label_note_27b_sections(sections)
     return sections
 
