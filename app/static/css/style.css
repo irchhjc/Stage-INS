@@ -242,6 +242,14 @@ body {
 .accounting-table-wrap.compact-table-wrap,
 .header-collapsed .accounting-table-wrap.compact-table-wrap,
 .focus-mode .accounting-table-wrap.compact-table-wrap { min-height: 0; max-height: none; }
+.accounting-table-wrap.complete-table-wrap { min-height: 0; }
+.complete-accounting-table { min-width: 760px; }
+.complete-accounting-table .poste-column,
+.complete-accounting-table .poste-cell { min-width: 280px; max-width: 420px; }
+.complete-values-cell { min-width: 380px; padding: .45rem !important; background: #f8fafc !important; }
+.complete-values-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); align-items: start; gap: .45rem; }
+.complete-value-item.value-cell { min-width: 0; padding: .4rem !important; border: 1px solid #dfe7ef; border-radius: 8px; background: #fff; }
+.complete-value-label { display: block; margin: 0 0 .25rem; color: #526273; font-size: .68rem; font-weight: 750; line-height: 1.15; }
 .accounting-table { width: 100%; min-width: 680px; font-size: .82rem; }
 .accounting-table.measure-columns-1 { min-width: 560px; }
 .accounting-table.measure-columns-2 { min-width: 720px; }
@@ -320,6 +328,7 @@ body {
   .sidebar-collapsed .fiche-sidebar-column { display: none; }
   .fiche-sidebar { position: static; max-height: 310px; }
   .accounting-table-wrap { min-height: 380px; max-height: calc(100vh - 180px); }
+  .complete-values-grid { grid-template-columns: minmax(190px, 1fr); }
   .compact-question-row { grid-template-columns: 1fr; gap: .4rem; padding: .45rem .25rem; }
   .compact-question-value .cell-editor { grid-template-columns: minmax(120px, 1fr) auto; }
   .header-collapsed .workspace-toolbar { top: 0; }

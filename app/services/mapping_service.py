@@ -150,7 +150,43 @@ def _complete_note_27b_table(sections):
     return [sections[0], complete_section]
 
 
-def build_accounting_sections(values, max_rows=30, fiche_code=None):
+def _merge_into_single_table(sections, fiche_code=None):
+    question_sections = [section for section in sections if section["is_question_block"]]
+    data_sections = [section for section in sections if not section["is_question_block"]]
+    rows = []
+
+    for section in data_sections:
+        for row in section["rows"]:
+            items = []
+            for slot in section["slots"]:
+                value = row["cells"].get(slot["key"])
+                if value is not None:
+                    items.append({"label": slot["label"], "value": value})
+            if items:
+                rows.append({"poste": row["poste"], "items": items})
+
+    if not rows:
+        return question_sections
+
+    if fiche_code == "NOTE_27B" and len(data_sections) == 1:
+        title = data_sections[0]["title"]
+    else:
+        title = "Tableau complet"
+
+    complete_section = {
+        "number": max((section["number"] for section in sections), default=0) + 1,
+        "title": title,
+        "slots": [],
+        "rows": rows,
+        "column_count": max(len(row["items"]) for row in rows),
+        "is_question_block": False,
+        "is_compact_table": False,
+        "is_complete_table": True,
+    }
+    return [*question_sections, complete_section]
+
+
+def build_accounting_sections(values, max_rows=30, fiche_code=None, single_table=False):
     groups = []
     current = None
     for value in values:
@@ -233,5 +269,7 @@ def build_accounting_sections(values, max_rows=30, fiche_code=None):
         section.pop("signature", None)
     if fiche_code == "NOTE_27B":
         sections = _complete_note_27b_table(sections)
+    if single_table:
+        sections = _merge_into_single_table(sections, fiche_code=fiche_code)
     return sections
 

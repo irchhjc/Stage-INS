@@ -95,14 +95,18 @@ def test_short_tables_use_natural_height_without_changing_their_columns():
 
 def test_note_27b_uses_one_complete_table_without_subtables():
     source_values = _reference_values_by_fiche()["NOTE_27B"]
-    sections = build_accounting_sections(source_values, fiche_code="NOTE_27B")
+    sections = build_accounting_sections(
+        source_values,
+        fiche_code="NOTE_27B",
+        single_table=True,
+    )
 
     assert [section["title"] for section in sections] == [
         "Question de contrôle",
         "Tableau complet - effectifs et masse salariale",
     ]
     complete_table = sections[1]
-    assert [slot["label"] for slot in complete_table["slots"]] == [
+    assert [item["label"] for item in complete_table["rows"][0]["items"]] == [
         "Hommes",
         "Femmes",
         "Total",
@@ -113,14 +117,36 @@ def test_note_27b_uses_one_complete_table_without_subtables():
         "Total - effectifs (1+2)",
         "Total - masse salariale (1+2)",
     ]
-    assert all(len(row["cells"]) == 3 for row in complete_table["rows"])
+    assert all(len(row["items"]) == 3 for row in complete_table["rows"])
 
     rendered_variables = [
-        value.variable_name
+        item["value"].variable_name
         for section in sections
-        for value in _section_values_for_test(section)
+        if section.get("is_complete_table")
+        for row in section["rows"]
+        for item in row["items"]
     ]
-    assert rendered_variables == [value.variable_name for value in source_values]
+    assert rendered_variables == [value.variable_name for value in source_values][1:]
+
+
+def test_every_fiche_uses_one_complete_table_outside_control_questions():
+    for fiche_code, source_values in _reference_values_by_fiche().items():
+        sections = build_accounting_sections(
+            source_values,
+            fiche_code=fiche_code,
+            single_table=True,
+        )
+        complete_tables = [section for section in sections if section.get("is_complete_table")]
+        assert len(complete_tables) == 1
+        assert all(
+            section["is_question_block"] or section.get("is_complete_table")
+            for section in sections
+        )
+        assert all(
+            item["value"] is not None
+            for row in complete_tables[0]["rows"]
+            for item in row["items"]
+        )
 
 
 def _section_values_for_test(section):
@@ -240,7 +266,6 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
 
     rendered_value_ids = set()
     compact_question_rows = 0
-    compact_table_sections = 0
     for definition in FICHE_DEFINITIONS:
         fiche_code = definition["code"]
         page = client.get(f"/dsf/{dsf.id}/fiche/{fiche_code}")
@@ -251,10 +276,9 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
         assert all(" disabled" not in input_tag for input_tag in inputs)
         assert 'class="empty-value"' not in html
         compact_question_rows += html.count('class="compact-question-row"')
-        compact_table_sections += html.count("compact-table-wrap")
+        assert html.count('class="table accounting-table') == 1
         if fiche_code == "NOTE_27B":
             assert "Tableau complet - effectifs et masse salariale" in html
-            assert html.count('class="table accounting-table') == 1
             assert "Tableau 2 -" not in html
         rendered_value_ids.update(
             int(value_id) for value_id in re.findall(r'data-value-id="(\d+)"', html)
@@ -264,7 +288,6 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
     assert rendered_value_ids == stored_value_ids
     assert len(rendered_value_ids) == FULL_DSF_COLUMN_COUNT
     assert compact_question_rows == 31
-    assert compact_table_sections == 33
 
     target_values = (
         DSFValue.query.join(ImportColumn)
