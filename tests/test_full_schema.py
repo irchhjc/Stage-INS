@@ -99,14 +99,14 @@ def test_note_27b_tables_are_labeled_from_their_source_variables():
 
     assert [section["title"] for section in sections] == [
         "Question de contrôle",
-        "Effectifs — groupe 1",
-        "Total — effectifs (groupe 1)",
-        "Masse salariale — groupe 1",
-        "Total — masse salariale (groupe 1)",
-        "Effectifs — groupe 2",
-        "Total — effectifs (groupe 2)",
-        "Masse salariale — groupe 2",
-        "Totaux — groupe 2 et ensemble (1+2)",
+        "Effectifs - groupe 1",
+        "Total - effectifs (groupe 1)",
+        "Masse salariale - groupe 1",
+        "Total - masse salariale (groupe 1)",
+        "Effectifs - groupe 2",
+        "Total - effectifs (groupe 2)",
+        "Masse salariale - groupe 2",
+        "Totaux - groupe 2 et ensemble (1+2)",
     ]
     assert [slot["label"] for slot in sections[2]["slots"]] == [
         "Hommes",
@@ -114,15 +114,15 @@ def test_note_27b_tables_are_labeled_from_their_source_variables():
         "Total",
     ]
     assert [slot["label"] for slot in sections[8]["slots"]] == [
-        "Masse salariale 2 — Hommes",
-        "Masse salariale 2 — Femmes",
-        "Masse salariale 2 — Total",
-        "Effectifs 1+2 — Hommes",
-        "Effectifs 1+2 — Femmes",
-        "Effectifs 1+2 — Total",
-        "Masse salariale 1+2 — Hommes",
-        "Masse salariale 1+2 — Femmes",
-        "Masse salariale 1+2 — Total",
+        "Masse salariale 2 - Hommes",
+        "Masse salariale 2 - Femmes",
+        "Masse salariale 2 - Total",
+        "Effectifs 1+2 - Hommes",
+        "Effectifs 1+2 - Femmes",
+        "Effectifs 1+2 - Total",
+        "Masse salariale 1+2 - Hommes",
+        "Masse salariale 1+2 - Femmes",
+        "Masse salariale 1+2 - Total",
     ]
 
     rendered_variables = [
@@ -184,7 +184,7 @@ def test_full_1777_column_schema_is_recognized_imported_and_exported(client):
     )
     html = response.get_data(as_text=True)
     assert response.status_code == 200
-    assert "Schéma DSF complet — 1 777 colonnes reconnu" in html
+    assert "Schéma DSF complet - 1 777 colonnes reconnu" in html
 
     import_session = ImportSession.query.one()
     stored_columns = ImportColumn.query.order_by(ImportColumn.column_index).all()
@@ -263,11 +263,11 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
         compact_question_rows += html.count('class="compact-question-row"')
         compact_table_sections += html.count("compact-table-wrap")
         if fiche_code == "NOTE_27B":
-            assert "Effectifs — groupe 1" in html
-            assert "Masse salariale — groupe 1" in html
-            assert "Effectifs — groupe 2" in html
-            assert "Masse salariale — groupe 2" in html
-            assert "Tableau 2 —" not in html
+            assert "Effectifs - groupe 1" in html
+            assert "Masse salariale - groupe 1" in html
+            assert "Effectifs - groupe 2" in html
+            assert "Masse salariale - groupe 2" in html
+            assert "Tableau 2 -" not in html
         rendered_value_ids.update(
             int(value_id) for value_id in re.findall(r'data-value-id="(\d+)"', html)
         )

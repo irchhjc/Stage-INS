@@ -6,7 +6,7 @@ from app.services.mapping_service import normalize_label
 
 
 FULL_DSF_SCHEMA_CODE = "DSF_1777_2026"
-FULL_DSF_SCHEMA_LABEL = "Schéma DSF complet — 1 777 colonnes"
+FULL_DSF_SCHEMA_LABEL = "Schéma DSF complet - 1 777 colonnes"
 FULL_DSF_COLUMN_COUNT = 1777
 FULL_DSF_SCHEMA_FINGERPRINT = "e08c5eac7e1c96a78e65fd1bcf8cc07a067f62f7db90f88239a88bc1d56fd1a6"
 

@@ -267,11 +267,11 @@ def import_workbook(filepath, original_filename, sheet_name=None, header_row=Non
 
 def preview_identity(dsf):
     return {
-        "NIU": dsf.niu or "—",
-        "NUMERO DE LA DSF": dsf.numero_dsf or "—",
-        "Raison sociale": dsf.raison_sociale or "—",
-        "Sigle": dsf.sigle or "—",
-        "Année": dsf.annee or "—",
+        "NIU": dsf.niu or "-",
+        "NUMERO DE LA DSF": dsf.numero_dsf or "-",
+        "Raison sociale": dsf.raison_sociale or "-",
+        "Sigle": dsf.sigle or "-",
+        "Année": dsf.annee or "-",
     }
 
 

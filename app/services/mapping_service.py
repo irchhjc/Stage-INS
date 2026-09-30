@@ -104,30 +104,30 @@ def _label_note_27b_sections(sections):
             kind = "Effectifs"
             occurrences[kind] += 1
             previous_group = (kind, occurrences[kind])
-            section["title"] = f"{kind} — groupe {occurrences[kind]}"
+            section["title"] = f"{kind} - groupe {occurrences[kind]}"
         elif any("(MASSE_SALARIALE_" in name for name in variable_names):
             kind = "Masse salariale"
             occurrences[kind] += 1
             previous_group = (kind, occurrences[kind])
-            section["title"] = f"{kind} — groupe {occurrences[kind]}"
+            section["title"] = f"{kind} - groupe {occurrences[kind]}"
         elif variable_names and all(normalize_label(name).startswith("total(") for name in variable_names):
             if len(section["slots"]) == 3 and previous_group:
                 kind, group_number = previous_group
-                section["title"] = f"Total — {kind.lower()} (groupe {group_number})"
+                section["title"] = f"Total - {kind.lower()} (groupe {group_number})"
                 for slot, label in zip(section["slots"], gender_labels):
                     slot["label"] = label
             elif len(section["slots"]) == 9:
-                section["title"] = "Totaux — groupe 2 et ensemble (1+2)"
+                section["title"] = "Totaux - groupe 2 et ensemble (1+2)"
                 labels = [
-                    "Masse salariale 2 — Hommes",
-                    "Masse salariale 2 — Femmes",
-                    "Masse salariale 2 — Total",
-                    "Effectifs 1+2 — Hommes",
-                    "Effectifs 1+2 — Femmes",
-                    "Effectifs 1+2 — Total",
-                    "Masse salariale 1+2 — Hommes",
-                    "Masse salariale 1+2 — Femmes",
-                    "Masse salariale 1+2 — Total",
+                    "Masse salariale 2 - Hommes",
+                    "Masse salariale 2 - Femmes",
+                    "Masse salariale 2 - Total",
+                    "Effectifs 1+2 - Hommes",
+                    "Effectifs 1+2 - Femmes",
+                    "Effectifs 1+2 - Total",
+                    "Masse salariale 1+2 - Hommes",
+                    "Masse salariale 1+2 - Femmes",
+                    "Masse salariale 1+2 - Total",
                 ]
                 for slot, label in zip(section["slots"], labels):
                     slot["label"] = label
@@ -211,7 +211,7 @@ def build_accounting_sections(values, max_rows=30, fiche_code=None):
         elif labels == ["Valeur"]:
             section["title"] = "Informations générales"
         else:
-            section["title"] = f"Tableau {section['number']} — {' / '.join(labels)}"
+            section["title"] = f"Tableau {section['number']} - {' / '.join(labels)}"
         section["column_count"] = len(section["slots"])
         section.pop("signature", None)
     if fiche_code == "NOTE_27B":

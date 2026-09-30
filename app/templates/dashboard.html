@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% from '_macros.html' import status_badge %}
-{% block title %}Tableau de bord — Contrôle DSF{% endblock %}
+{% block title %}Tableau de bord - Contrôle DSF{% endblock %}
 {% block content %}
 <div class="page-heading align-items-end">
   <div>
@@ -49,8 +49,8 @@
   <div class="card-body p-4">
     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
       <div>
-        <span class="small text-secondary">Progression générale — DSF terminées / total</span>
-        <div class="h4 mb-0 mt-1">{{ stats.completed }} / {{ stats.total }} — {{ stats.overall_progress }} %</div>
+        <span class="small text-secondary">Progression générale - DSF terminées / total</span>
+        <div class="h4 mb-0 mt-1">{{ stats.completed }} / {{ stats.total }} - {{ stats.overall_progress }} %</div>
       </div>
       <div class="progress dashboard-progress flex-grow-1" role="progressbar" aria-valuenow="{{ stats.overall_progress }}" aria-valuemin="0" aria-valuemax="100">
         <div class="progress-bar bg-success" style="width: {{ stats.overall_progress }}%"></div>

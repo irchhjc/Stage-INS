@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% from '_macros.html' import status_badge %}
-{% block title %}Administration — Contrôle DSF{% endblock %}
+{% block title %}Administration - Contrôle DSF{% endblock %}
 {% block content %}
 <div class="page-heading align-items-end">
   <div><p class="eyebrow">ADMINISTRATION</p><h1>Pilotage et affectations</h1><p class="text-secondary mb-0">Suivez les volumes saisis, l'activité de contrôle et la progression des équipes.</p></div>
@@ -111,13 +111,13 @@
             <td class="hm-name-col">{{ row.user.display_label }}</td>
             {% for day in row.days %}
             <td class="hm-cell activity-{{ day.level }}"
-                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ row.user.display_label }} : {{ day.dsfs }} DSF active(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
+                title="{{ day.date.strftime('%d/%m/%Y') }} - {{ row.user.display_label }} : {{ day.dsfs }} DSF active(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
               {%- if day.dsfs > 0 %}<span>{{ day.dsfs }}</span>{% endif -%}
             </td>
             {% endfor %}
-            <td class="hm-total-col"><strong>{{ row.total_dsfs if row.total_dsfs else '—' }}</strong></td>
-            <td class="hm-total-col text-secondary">{{ row.total_fiches if row.total_fiches else '—' }}</td>
-            <td class="hm-total-col text-secondary">{{ row.total_corrections if row.total_corrections else '—' }}</td>
+            <td class="hm-total-col"><strong>{{ row.total_dsfs if row.total_dsfs else '-' }}</strong></td>
+            <td class="hm-total-col text-secondary">{{ row.total_fiches if row.total_fiches else '-' }}</td>
+            <td class="hm-total-col text-secondary">{{ row.total_corrections if row.total_corrections else '-' }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -235,7 +235,7 @@
 <div class="card panel-card mt-4">
   <div class="card-header bg-white border-0 p-4 pb-2">
     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h2 class="h5 mb-1">Affecter les DSF</h2><p class="small text-secondary mb-0">Les DSF libres sont visibles par tous les contrôleurs. Seul le contrôleur qui la prend en charge peut la modifier.</p></div>
-      {% if sessions %}<select id="adminSessionSelector" class="form-select session-selector">{% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} — {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}</select>{% endif %}
+      {% if sessions %}<select id="adminSessionSelector" class="form-select session-selector">{% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} - {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}</select>{% endif %}
     </div>
     {% if active_session %}
     <div class="bulk-assignment-panel mt-3">
@@ -254,7 +254,7 @@
         <input type="hidden" name="session_id" value="{{ active_session.id }}">
         <label class="visually-hidden" for="activityBranch">Sous-branche</label>
         <select id="activityBranch" name="branch" class="form-select"><option value="">Toutes les sous-branches</option>
-        {% for item in branches %}<option value="{{ item.key }}" {{ 'selected' if branch == item.key else '' }}>{{ item.label }} — {{ item.ids|length }} DSF, {{ item.free }} libres</option>{% endfor %}</select>
+        {% for item in branches %}<option value="{{ item.key }}" {{ 'selected' if branch == item.key else '' }}>{{ item.label }} - {{ item.ids|length }} DSF, {{ item.free }} libres</option>{% endfor %}</select>
         <button class="btn btn-outline-primary">Afficher</button>
       </form>
       {% if branch %}{% for item in branches if item.key == branch %}
@@ -270,7 +270,7 @@
     {% endif %}
   </div>
   <div class="table-responsive"><table class="table table-hover align-middle mb-0 data-table"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Sous-branche</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
-    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ activity[dsf.id].label }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
+    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '-' }}</td><td>{{ dsf.numero_dsf or '-' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '-' }}</td><td>{{ activity[dsf.id].label }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
       {% if dsf.assignee %}<div class="assigned-lock"><span class="badge text-bg-success">✓ Affectée</span><strong>{{ dsf.assignee.display_label }}</strong><small>Affectation verrouillée</small></div>
       {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
     </td><td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Voir</a></td></tr>

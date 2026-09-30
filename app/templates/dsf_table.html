@@ -7,7 +7,7 @@
         <p class="small text-secondary mb-0">{% if list_mode == 'mine' %}Dossiers que vous avez pris en charge et commencé à contrôler.{% elif current_user.is_admin %}Vue complète des dossiers importés.{% else %}Catalogue commun : prenez en charge une DSF libre avant de la modifier.{% endif %}</p>
       </div>
       <select id="sessionSelector" class="form-select session-selector" aria-label="Classeur actif">
-        {% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} — {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}
+        {% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} - {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}
       </select>
     </div>
     <div class="row g-2 mt-3">
@@ -26,11 +26,11 @@
       <tbody id="dsfRows">
       {% for dsf in dsfs %}
         <tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.sigle or '')|lower }}">
-          <td class="fw-semibold">{{ dsf.niu or '—' }}</td>
-          <td>{{ dsf.numero_dsf or '—' }}</td>
+          <td class="fw-semibold">{{ dsf.niu or '-' }}</td>
+          <td>{{ dsf.numero_dsf or '-' }}</td>
           <td><span class="company-name">{{ dsf.raison_sociale or 'Sans raison sociale' }}</span></td>
-          <td>{{ dsf.sigle or '—' }}</td>
-          <td>{{ dsf.annee or '—' }}</td>
+          <td>{{ dsf.sigle or '-' }}</td>
+          <td>{{ dsf.annee or '-' }}</td>
           <td class="progress-cell"><div class="d-flex align-items-center gap-2"><div class="progress"><div class="progress-bar bg-success" style="width:{{ dsf.progress_percent }}%"></div></div><span>{{ dsf.progress_percent }}%</span></div></td>
           <td>{{ status_badge(dsf.status) }}</td>
           <td>{% if dsf.anomaly_count %}<span class="badge text-bg-danger">{{ dsf.anomaly_count }}</span>{% else %}<span class="text-secondary">0</span>{% endif %}</td>
