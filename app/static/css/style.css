@@ -239,6 +239,9 @@ body {
 .accounting-table-wrap { width: 100%; min-height: 430px; max-height: calc(100vh - 278px); }
 .header-collapsed .accounting-table-wrap { max-height: calc(100vh - 132px); }
 .focus-mode .accounting-table-wrap { min-height: calc(100vh - 150px); max-height: calc(100vh - 102px); }
+.accounting-table-wrap.compact-table-wrap,
+.header-collapsed .accounting-table-wrap.compact-table-wrap,
+.focus-mode .accounting-table-wrap.compact-table-wrap { min-height: 0; max-height: none; }
 .accounting-table { width: 100%; min-width: 680px; font-size: .82rem; }
 .accounting-table.measure-columns-1 { min-width: 560px; }
 .accounting-table.measure-columns-2 { min-width: 720px; }

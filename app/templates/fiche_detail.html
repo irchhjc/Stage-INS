@@ -95,7 +95,7 @@
                 {% endfor %}
               </div>
               {% else %}
-              <div class="table-responsive accounting-table-wrap">
+              <div class="table-responsive accounting-table-wrap {{ 'compact-table-wrap' if section.is_compact_table else '' }}">
                 <table class="table accounting-table measure-columns-{{ section.column_count }} align-middle mb-0">
                   <thead><tr><th class="poste-column">Poste</th>{% for slot in section.slots %}<th>{{ slot.label }}</th>{% endfor %}<th class="row-action-column">Contrôle</th></tr></thead>
                   <tbody>

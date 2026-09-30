@@ -138,6 +138,13 @@ def build_accounting_sections(values, max_rows=30):
             labels == ["Valeur"]
             and all(row["poste"].rstrip().endswith("?") for row in section["rows"])
         )
+        # Les changements de structure du fichier source créent parfois un
+        # tableau autonome d'une à trois lignes (TOTAL, SOUS-TOTAL, trace…).
+        # Il conserve ses colonnes exactes, mais n'a pas besoin de la hauteur
+        # minimale réservée aux grands tableaux de saisie.
+        section["is_compact_table"] = (
+            not section["is_question_block"] and len(section["rows"]) <= 3
+        )
         if section["is_question_block"]:
             section["title"] = (
                 "Question de contrôle"
