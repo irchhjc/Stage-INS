@@ -93,37 +93,27 @@ def test_short_tables_use_natural_height_without_changing_their_columns():
     )
 
 
-def test_note_27b_tables_are_labeled_from_their_source_variables():
+def test_note_27b_uses_one_complete_table_without_subtables():
     source_values = _reference_values_by_fiche()["NOTE_27B"]
     sections = build_accounting_sections(source_values, fiche_code="NOTE_27B")
 
     assert [section["title"] for section in sections] == [
         "Question de contrôle",
-        "Effectifs - groupe 1",
-        "Total - effectifs (groupe 1)",
-        "Masse salariale - groupe 1",
-        "Total - masse salariale (groupe 1)",
-        "Effectifs - groupe 2",
-        "Total - effectifs (groupe 2)",
-        "Masse salariale - groupe 2",
-        "Totaux - groupe 2 et ensemble (1+2)",
+        "Tableau complet - effectifs et masse salariale",
     ]
-    assert [slot["label"] for slot in sections[2]["slots"]] == [
+    complete_table = sections[1]
+    assert [slot["label"] for slot in complete_table["slots"]] == [
         "Hommes",
         "Femmes",
         "Total",
     ]
-    assert [slot["label"] for slot in sections[8]["slots"]] == [
-        "Masse salariale 2 - Hommes",
-        "Masse salariale 2 - Femmes",
-        "Masse salariale 2 - Total",
-        "Effectifs 1+2 - Hommes",
-        "Effectifs 1+2 - Femmes",
-        "Effectifs 1+2 - Total",
-        "Masse salariale 1+2 - Hommes",
-        "Masse salariale 1+2 - Femmes",
-        "Masse salariale 1+2 - Total",
+    assert len(complete_table["rows"]) == 22
+    assert [row["poste"] for row in complete_table["rows"]][-3:] == [
+        "Total - masse salariale (groupe 2)",
+        "Total - effectifs (1+2)",
+        "Total - masse salariale (1+2)",
     ]
+    assert all(len(row["cells"]) == 3 for row in complete_table["rows"])
 
     rendered_variables = [
         value.variable_name
@@ -263,10 +253,8 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
         compact_question_rows += html.count('class="compact-question-row"')
         compact_table_sections += html.count("compact-table-wrap")
         if fiche_code == "NOTE_27B":
-            assert "Effectifs - groupe 1" in html
-            assert "Masse salariale - groupe 1" in html
-            assert "Effectifs - groupe 2" in html
-            assert "Masse salariale - groupe 2" in html
+            assert "Tableau complet - effectifs et masse salariale" in html
+            assert html.count('class="table accounting-table') == 1
             assert "Tableau 2 -" not in html
         rendered_value_ids.update(
             int(value_id) for value_id in re.findall(r'data-value-id="(\d+)"', html)
@@ -276,7 +264,7 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
     assert rendered_value_ids == stored_value_ids
     assert len(rendered_value_ids) == FULL_DSF_COLUMN_COUNT
     assert compact_question_rows == 31
-    assert compact_table_sections == 37
+    assert compact_table_sections == 33
 
     target_values = (
         DSFValue.query.join(ImportColumn)

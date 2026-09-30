@@ -86,51 +86,68 @@ def _section_values(section):
                 yield value
 
 
-def _label_note_27b_sections(sections):
-    """Donne aux blocs répétés de la note 27B leur contexte de lecture.
+def _complete_note_27b_table(sections):
+    """Regroupe la note 27B en une seule table à trois colonnes de valeurs.
 
-    Les en-têtes source distinguent EFFECTIF et MASSE_SALARIALE, tandis que
-    les lignes TOTAL suivantes portent les marqueurs 1, 2 et 1+2. Les noms
-    originaux restent attachés aux valeurs ; seuls les titres et en-têtes
-    d'affichage sont rendus explicites.
+    La source alterne quatre blocs de données et plusieurs lignes TOTAL dont
+    les signatures diffèrent. Leur ordre est conservé, mais chaque bloc est
+    transformé en lignes explicites afin d'éviter neuf sous-tableaux.
     """
-    occurrences = Counter()
-    previous_group = None
-    gender_labels = ["Hommes", "Femmes", "Total"]
+    expected_slot_counts = [1, 3, 3, 3, 3, 3, 3, 3, 9]
+    if len(sections) != len(expected_slot_counts) or [
+        len(section["slots"]) for section in sections
+    ] != expected_slot_counts:
+        return sections
 
-    for section in sections:
-        variable_names = [value.variable_name for value in _section_values(section)]
-        if any("(EFFECTIF_" in name for name in variable_names):
-            kind = "Effectifs"
-            occurrences[kind] += 1
-            previous_group = (kind, occurrences[kind])
-            section["title"] = f"{kind} - groupe {occurrences[kind]}"
-        elif any("(MASSE_SALARIALE_" in name for name in variable_names):
-            kind = "Masse salariale"
-            occurrences[kind] += 1
-            previous_group = (kind, occurrences[kind])
-            section["title"] = f"{kind} - groupe {occurrences[kind]}"
-        elif variable_names and all(normalize_label(name).startswith("total(") for name in variable_names):
-            if len(section["slots"]) == 3 and previous_group:
-                kind, group_number = previous_group
-                section["title"] = f"Total - {kind.lower()} (groupe {group_number})"
-                for slot, label in zip(section["slots"], gender_labels):
-                    slot["label"] = label
-            elif len(section["slots"]) == 9:
-                section["title"] = "Totaux - groupe 2 et ensemble (1+2)"
-                labels = [
-                    "Masse salariale 2 - Hommes",
-                    "Masse salariale 2 - Femmes",
-                    "Masse salariale 2 - Total",
-                    "Effectifs 1+2 - Hommes",
-                    "Effectifs 1+2 - Femmes",
-                    "Effectifs 1+2 - Total",
-                    "Masse salariale 1+2 - Hommes",
-                    "Masse salariale 1+2 - Femmes",
-                    "Masse salariale 1+2 - Total",
-                ]
-                for slot, label in zip(section["slots"], labels):
-                    slot["label"] = label
+    slots = [
+        {"key": "Hommes#1", "label": "Hommes"},
+        {"key": "Femmes#1", "label": "Femmes"},
+        {"key": "Total#1", "label": "Total"},
+    ]
+    rows = []
+
+    def append_row(poste, values):
+        if len(values) != 3:
+            return
+        rows.append(
+            {
+                "poste": poste,
+                "cells": {slot["key"]: value for slot, value in zip(slots, values)},
+            }
+        )
+
+    def append_group(section, group_label):
+        for row in section["rows"]:
+            values = [row["cells"].get(slot["key"]) for slot in section["slots"]]
+            append_row(f"{group_label} - {row['poste']}", values)
+
+    def append_total(section, total_label):
+        values = list(_section_values(section))
+        append_row(total_label, values)
+
+    append_group(sections[1], "Effectifs - groupe 1")
+    append_total(sections[2], "Total - effectifs (groupe 1)")
+    append_group(sections[3], "Masse salariale - groupe 1")
+    append_total(sections[4], "Total - masse salariale (groupe 1)")
+    append_group(sections[5], "Effectifs - groupe 2")
+    append_total(sections[6], "Total - effectifs (groupe 2)")
+    append_group(sections[7], "Masse salariale - groupe 2")
+
+    final_values = list(_section_values(sections[8]))
+    append_row("Total - masse salariale (groupe 2)", final_values[0:3])
+    append_row("Total - effectifs (1+2)", final_values[3:6])
+    append_row("Total - masse salariale (1+2)", final_values[6:9])
+
+    complete_section = {
+        "number": 2,
+        "title": "Tableau complet - effectifs et masse salariale",
+        "slots": slots,
+        "rows": rows,
+        "column_count": 3,
+        "is_question_block": False,
+        "is_compact_table": False,
+    }
+    return [sections[0], complete_section]
 
 
 def build_accounting_sections(values, max_rows=30, fiche_code=None):
@@ -215,6 +232,6 @@ def build_accounting_sections(values, max_rows=30, fiche_code=None):
         section["column_count"] = len(section["slots"])
         section.pop("signature", None)
     if fiche_code == "NOTE_27B":
-        _label_note_27b_sections(sections)
+        sections = _complete_note_27b_table(sections)
     return sections
 
