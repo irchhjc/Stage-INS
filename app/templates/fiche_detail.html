@@ -1,5 +1,16 @@
 {% extends 'base.html' %}
 {% from '_macros.html' import fiche_link, status_badge, validate_all_fiches_button %}
+{% macro editable_value(value) %}
+  <div class="cell-editor">
+    <input class="value-input" id="value-input-{{ value.id }}" type="text" value="{{ display_value(value.current_value) }}" data-raw="{{ raw_input_value(value.current_value) }}" data-value-id="{{ value.id }}" data-status="{{ value.status }}" autocomplete="off" placeholder="Saisir une valeur" aria-label="{{ value.variable_name }}">
+    <div class="cell-actions" role="group" aria-label="Statut de {{ value.variable_name }}">
+      <button class="cell-action cell-action-verified" type="button" title="Vérifier" aria-label="Vérifier cette valeur" aria-pressed="{{ 'true' if value.status == 'verified' else 'false' }}" data-set-status="verified"><span aria-hidden="true">✓</span></button>
+      <button class="cell-action cell-action-anomaly" type="button" title="Signaler une anomalie" aria-label="Signaler une anomalie" aria-pressed="{{ 'true' if value.status == 'anomaly' else 'false' }}" data-set-status="anomaly"><span aria-hidden="true">!</span></button>
+      <button class="cell-action cell-action-na" type="button" title="Non applicable" aria-label="Marquer comme non applicable" aria-pressed="{{ 'true' if value.status == 'not_applicable' else 'false' }}" data-set-status="not_applicable"><span aria-hidden="true">Ø</span></button>
+    </div>
+  </div>
+  <span class="save-indicator" aria-live="polite"></span>
+{% endmacro %}
 {% block title %}{{ fiche.fiche_name }} — {{ dsf.niu }}{% endblock %}
 {% block content %}
 <div id="fichePage" data-dsf-id="{{ dsf.id }}" data-fiche-code="{{ fiche.fiche_code }}">
@@ -71,6 +82,19 @@
           <h3 class="accordion-header"><button class="accordion-button {{ '' if loop.first else 'collapsed' }}" type="button" data-bs-toggle="collapse" data-bs-target="#section-body-{{ section.number }}">{{ section.title }}</button></h3>
           <div id="section-body-{{ section.number }}" class="accordion-collapse collapse {{ 'show' if loop.first else '' }}">
             <div class="accordion-body p-0">
+              {% if section.is_question_block %}
+              <div class="compact-question-list">
+                {% for row in section.rows %}
+                  {% set value = row.cells.get(section.slots[0].key) %}
+                  <div class="compact-question-row">
+                    <label class="compact-question-label" for="value-input-{{ value.id }}">{{ row.poste }}</label>
+                    <div id="value-{{ value.id }}" class="value-cell compact-question-value status-{{ value.status }} {{ 'is-corrected' if value.corrected else '' }}" title="{{ value.variable_name }} · colonne {{ value.column.excel_column_letter }}">
+                      {{ editable_value(value) }}
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+              {% else %}
               <div class="table-responsive accounting-table-wrap">
                 <table class="table accounting-table measure-columns-{{ section.column_count }} align-middle mb-0">
                   <thead><tr><th class="poste-column">Poste</th>{% for slot in section.slots %}<th>{{ slot.label }}</th>{% endfor %}<th class="row-action-column">Contrôle</th></tr></thead>
@@ -82,15 +106,7 @@
                         {% set value = row.cells.get(slot.key) %}
                         {% if value %}
                         <td id="value-{{ value.id }}" class="value-cell status-{{ value.status }} {{ 'is-corrected' if value.corrected else '' }}" title="{{ value.variable_name }} · colonne {{ value.column.excel_column_letter }}">
-                          <div class="cell-editor">
-                            <input class="value-input" type="text" value="{{ display_value(value.current_value) }}" data-raw="{{ raw_input_value(value.current_value) }}" data-value-id="{{ value.id }}" data-status="{{ value.status }}" autocomplete="off" placeholder="Saisir une valeur" aria-label="{{ value.variable_name }}">
-                            <div class="cell-actions" role="group" aria-label="Statut de {{ value.variable_name }}">
-                              <button class="cell-action cell-action-verified" type="button" title="Vérifier" aria-label="Vérifier cette valeur" aria-pressed="{{ 'true' if value.status == 'verified' else 'false' }}" data-set-status="verified"><span aria-hidden="true">✓</span></button>
-                              <button class="cell-action cell-action-anomaly" type="button" title="Signaler une anomalie" aria-label="Signaler une anomalie" aria-pressed="{{ 'true' if value.status == 'anomaly' else 'false' }}" data-set-status="anomaly"><span aria-hidden="true">!</span></button>
-                              <button class="cell-action cell-action-na" type="button" title="Non applicable" aria-label="Marquer comme non applicable" aria-pressed="{{ 'true' if value.status == 'not_applicable' else 'false' }}" data-set-status="not_applicable"><span aria-hidden="true">Ø</span></button>
-                            </div>
-                          </div>
-                          <span class="save-indicator" aria-live="polite"></span>
+                          {{ editable_value(value) }}
                         </td>
                         {% else %}<td class="empty-value">—</td>{% endif %}
                       {% endfor %}
@@ -100,6 +116,7 @@
                   </tbody>
                 </table>
               </div>
+              {% endif %}
             </div>
           </div>
         </div>

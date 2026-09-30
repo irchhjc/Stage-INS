@@ -57,6 +57,22 @@ def test_every_full_schema_table_contains_only_real_cells():
             assert all(set(row["cells"]) == expected_slots for row in section["rows"])
 
 
+def test_question_variables_use_compact_blocks():
+    headers = _reference_headers()
+    expected_questions = [header.strip() for header in headers if header.strip().endswith("?")]
+    rendered_questions = []
+
+    for values in _reference_values_by_fiche().values():
+        for section in build_accounting_sections(values):
+            if section["is_question_block"]:
+                assert section["column_count"] == 1
+                assert [slot["label"] for slot in section["slots"]] == ["Valeur"]
+                rendered_questions.extend(row["poste"] for row in section["rows"])
+
+    assert len(expected_questions) == 31
+    assert rendered_questions == expected_questions
+
+
 def _reference_workbook(headers):
     workbook = Workbook()
     worksheet = workbook.active
@@ -165,6 +181,7 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
         columns_by_fiche[column.fiche_code].append(column)
 
     rendered_value_ids = set()
+    compact_question_rows = 0
     for definition in FICHE_DEFINITIONS:
         fiche_code = definition["code"]
         page = client.get(f"/dsf/{dsf.id}/fiche/{fiche_code}")
@@ -174,6 +191,7 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
         assert len(inputs) == len(columns_by_fiche[fiche_code])
         assert all(" disabled" not in input_tag for input_tag in inputs)
         assert 'class="empty-value"' not in html
+        compact_question_rows += html.count('class="compact-question-row"')
         rendered_value_ids.update(
             int(value_id) for value_id in re.findall(r'data-value-id="(\d+)"', html)
         )
@@ -181,6 +199,7 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
     stored_value_ids = {value.id for value in DSFValue.query.filter_by(dsf_id=dsf.id)}
     assert rendered_value_ids == stored_value_ids
     assert len(rendered_value_ids) == FULL_DSF_COLUMN_COUNT
+    assert compact_question_rows == 31
 
     target_values = (
         DSFValue.query.join(ImportColumn)

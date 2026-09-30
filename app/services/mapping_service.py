@@ -134,7 +134,17 @@ def build_accounting_sections(values, max_rows=30):
 
     for section in sections:
         labels = [slot["label"] for slot in section["slots"]]
-        if len(sections) == 1:
+        section["is_question_block"] = (
+            labels == ["Valeur"]
+            and all(row["poste"].rstrip().endswith("?") for row in section["rows"])
+        )
+        if section["is_question_block"]:
+            section["title"] = (
+                "Question de contrôle"
+                if len(section["rows"]) == 1
+                else "Questions de contrôle"
+            )
+        elif len(sections) == 1:
             section["title"] = "Tableau comptable"
         elif labels == ["Valeur"]:
             section["title"] = "Informations générales"
