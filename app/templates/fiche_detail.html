@@ -94,31 +94,6 @@
                   </div>
                 {% endfor %}
               </div>
-              {% elif section.is_complete_table %}
-              <div class="table-responsive accounting-table-wrap complete-table-wrap">
-                <table class="table accounting-table complete-accounting-table align-middle mb-0">
-                  <thead><tr><th class="poste-column">Poste</th><th>Valeurs</th><th class="row-action-column">Contrôle</th></tr></thead>
-                  <tbody>
-                  {% for row in section.rows %}
-                    <tr>
-                      <th scope="row" class="poste-cell">{{ row.poste }}</th>
-                      <td class="complete-values-cell">
-                        <div class="complete-values-grid">
-                          {% for item in row['items'] %}
-                          {% set value = item.value %}
-                          <div id="value-{{ value.id }}" class="value-cell complete-value-item status-{{ value.status }} {{ 'is-corrected' if value.corrected else '' }}" title="{{ value.variable_name }} · colonne {{ value.column.excel_column_letter }}">
-                            <label class="complete-value-label" for="value-input-{{ value.id }}">{{ item.label }}</label>
-                            {{ editable_value(value) }}
-                          </div>
-                          {% endfor %}
-                        </div>
-                      </td>
-                      <td class="row-actions"><button type="button" class="btn btn-sm btn-outline-success verify-row" title="Marquer toute la ligne comme vérifiée">✓ ligne</button></td>
-                    </tr>
-                  {% endfor %}
-                  </tbody>
-                </table>
-              </div>
               {% else %}
               <div class="table-responsive accounting-table-wrap {{ 'compact-table-wrap' if section.is_compact_table else '' }}">
                 <table class="table accounting-table measure-columns-{{ section.column_count }} align-middle mb-0">

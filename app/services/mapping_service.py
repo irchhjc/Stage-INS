@@ -86,6 +86,111 @@ def _section_values(section):
                 yield value
 
 
+def _ordered_raw_cells(raw_cells):
+    preferred_order = {
+        "N": 0,
+        "N-1": 1,
+        "À 1 an au plus": 2,
+        "Plus de 1 an à 2 ans": 3,
+        "Plus de 2 ans": 4,
+    }
+    measures = [measure for measure, _value in raw_cells]
+    if len(measures) == len(set(measures)) and all(
+        measure in preferred_order for measure in measures
+    ):
+        return sorted(raw_cells, key=lambda item: preferred_order[item[0]])
+    return raw_cells
+
+
+def _merge_disjoint_poste_fragments(groups):
+    mergeable_measure_sets = {
+        frozenset(("N", "N-1")),
+        frozenset(("À 1 an au plus", "Plus de 1 an à 2 ans", "Plus de 2 ans")),
+        frozenset(
+            (
+                "N",
+                "N-1",
+                "À 1 an au plus",
+                "Plus de 1 an à 2 ans",
+                "Plus de 2 ans",
+            )
+        ),
+    }
+    merged_groups = []
+    positions = {}
+    for group in groups:
+        existing_index = positions.get(group["poste_key"])
+        if existing_index is not None:
+            existing = merged_groups[existing_index]
+            existing_measures = {measure for measure, _value in existing["raw_cells"]}
+            incoming_measures = {measure for measure, _value in group["raw_cells"]}
+            combined_measures = existing_measures | incoming_measures
+            if (
+                existing_measures.isdisjoint(incoming_measures)
+                and frozenset(combined_measures) in mergeable_measure_sets
+            ):
+                existing["raw_cells"] = _ordered_raw_cells(
+                    [*existing["raw_cells"], *group["raw_cells"]]
+                )
+                continue
+        positions[group["poste_key"]] = len(merged_groups)
+        group["raw_cells"] = _ordered_raw_cells(group["raw_cells"])
+        merged_groups.append(group)
+    return merged_groups
+
+
+def _prepare_group(group):
+    counts = Counter()
+    cells = {}
+    slots = []
+    for measure, value in group["raw_cells"]:
+        counts[measure] += 1
+        slot = f"{measure}#{counts[measure]}"
+        slots.append(
+            {
+                "key": slot,
+                "label": measure if counts[measure] == 1 else f"{measure} ({counts[measure]})",
+            }
+        )
+        cells[slot] = value
+    return {
+        "poste": group["poste"],
+        "cells": cells,
+        "slots": slots,
+        "signature": tuple(slot["key"] for slot in slots),
+    }
+
+
+def _stitch_total_fragments(groups):
+    prepared = []
+    cursor = 0
+    while cursor < len(groups):
+        group = groups[cursor]
+        candidate = _prepare_group(group)
+        is_total = "total" in normalize_label(group["poste"])
+        expected_signature = prepared[-1]["signature"] if prepared else ()
+
+        if is_total and expected_signature and len(candidate["signature"]) < len(expected_signature):
+            combined_raw_cells = list(group["raw_cells"])
+            lookahead = cursor + 1
+            while lookahead < len(groups):
+                combined_raw_cells.extend(groups[lookahead]["raw_cells"])
+                combined = _prepare_group(
+                    {"poste": group["poste"], "raw_cells": combined_raw_cells}
+                )
+                if combined["signature"] == expected_signature:
+                    candidate = combined
+                    cursor = lookahead
+                    break
+                if len(combined["signature"]) >= len(expected_signature):
+                    break
+                lookahead += 1
+
+        prepared.append(candidate)
+        cursor += 1
+    return prepared
+
+
 def _complete_note_27b_table(sections):
     """Regroupe la note 27B en une seule table à trois colonnes de valeurs.
 
@@ -150,94 +255,108 @@ def _complete_note_27b_table(sections):
     return [sections[0], complete_section]
 
 
-def _merge_into_single_table(sections, fiche_code=None):
-    question_sections = [section for section in sections if section["is_question_block"]]
-    data_sections = [section for section in sections if not section["is_question_block"]]
-    rows = []
-
-    for section in data_sections:
-        for row in section["rows"]:
-            items = []
-            for slot in section["slots"]:
-                value = row["cells"].get(slot["key"])
-                if value is not None:
-                    items.append({"label": slot["label"], "value": value})
-            if items:
-                rows.append({"poste": row["poste"], "items": items})
-
-    if not rows:
-        return question_sections
-
-    if fiche_code == "NOTE_27B" and len(data_sections) == 1:
-        title = data_sections[0]["title"]
-    else:
-        title = "Tableau complet"
-
-    complete_section = {
-        "number": max((section["number"] for section in sections), default=0) + 1,
-        "title": title,
-        "slots": [],
-        "rows": rows,
-        "column_count": max(len(row["items"]) for row in rows),
-        "is_question_block": False,
-        "is_compact_table": False,
-        "is_complete_table": True,
+def _section_title(labels, rows):
+    signatures = {
+        ("BRUT", "AMORT./DÉPRÉC.", "NET N", "NET N-1"):
+            "Valeurs brutes, amortissements et valeurs nettes",
+        ("N", "N-1"): "Comparaison des exercices N et N-1",
+        ("N",): "Exercice N",
+        ("N-1",): "Exercice N-1",
+        (
+            "Brut à l'ouverture",
+            "Acquisitions / apports / créations",
+            "Virements entre postes (+)",
+            "Réévaluations",
+            "Cessions / scissions",
+            "Virements entre postes (-)",
+            "Brut à la clôture",
+        ): "Mouvements des immobilisations brutes",
+        (
+            "Amortissements cumulés à l'ouverture",
+            "Dotations",
+            "Diminutions",
+            "Amortissements cumulés à la clôture",
+        ): "Mouvements des amortissements et dépréciations",
+        (
+            "Montant brut",
+            "Amortissements pratiqués",
+            "Valeur comptable",
+            "Prix de cession",
+            "Plus ou moins-value",
+        ): "Cessions d'immobilisations",
+        ("À 1 an au plus", "Plus de 1 an à 2 ans", "Plus de 2 ans"):
+            "Échéancier par maturité",
+        (
+            "N",
+            "N-1",
+            "À 1 an au plus",
+            "Plus de 1 an à 2 ans",
+            "Plus de 2 ans",
+        ): "Valeurs des exercices et échéancier par maturité",
+        ("N", "N-1", "N (2)", "N-1 (2)"):
+            "Hypothèses comparées N et N-1",
+        ("Hommes", "Femmes", "Total"): "Répartition par sexe",
     }
-    return [*question_sections, complete_section]
+    signature = tuple(labels)
+    if signature in signatures:
+        return signatures[signature]
+    if labels == ["Valeur"]:
+        return "Informations générales"
+    if rows and all("TOTAL" in row["poste"].upper() for row in rows):
+        return f"Totaux - {' / '.join(labels)}"
+    return f"Colonnes - {' / '.join(labels)}"
 
 
-def build_accounting_sections(values, max_rows=30, fiche_code=None, single_table=False):
+def build_accounting_sections(values, max_rows=None, fiche_code=None):
     groups = []
     current = None
     for value in values:
         poste, measure = split_variable_name(value.variable_name)
-        if current is None or current["poste"] != poste:
-            current = {"poste": poste, "raw_cells": []}
+        poste_key = re.sub(r"\s*([:;])\s*", r"\1", normalize_label(poste))
+        if current is None or current["poste_key"] != poste_key:
+            current = {"poste": poste, "poste_key": poste_key, "raw_cells": []}
             groups.append(current)
         current["raw_cells"].append((measure, value))
 
-    prepared_groups = []
-    for group in groups:
-        counts = Counter()
-        cells = {}
-        slots = []
-        for measure, value in group["raw_cells"]:
-            counts[measure] += 1
-            slot = f"{measure}#{counts[measure]}"
-            slots.append(
-                {
-                    "key": slot,
-                    "label": measure if counts[measure] == 1 else f"{measure} ({counts[measure]})",
-                }
-            )
-            cells[slot] = value
-        prepared_groups.append(
-            {
-                "poste": group["poste"],
-                "cells": cells,
-                "slots": slots,
-                "signature": tuple(slot["key"] for slot in slots),
-            }
-        )
+    if fiche_code != "NOTE_27B":
+        groups = _merge_disjoint_poste_fragments(groups)
+    prepared_groups = _stitch_total_fragments(groups)
 
     # Une table ne contient que des lignes ayant exactement la même structure.
     # Cela évite qu'une question isolée ou qu'un total particulier ajoute des
     # colonnes vides à toutes les autres lignes de la fiche.
     sections = []
+    data_sections = {}
     for group in prepared_groups:
-        current = sections[-1] if sections else None
-        if (
-            current is None
-            or current["signature"] != group["signature"]
-            or len(current["rows"]) >= max_rows
-        ):
+        is_question = (
+            group["signature"] == ("Valeur#1",)
+            and group["poste"].rstrip().endswith("?")
+        )
+        current = None
+        if fiche_code == "NOTE_27B" and sections:
+            previous = sections[-1]
+            if previous["signature"] == group["signature"]:
+                current = previous
+        elif not is_question:
+            current = data_sections.get(group["signature"])
+            if current is not None and max_rows is not None and len(current["rows"]) >= max_rows:
+                current = None
+        elif is_question and sections:
+            previous = sections[-1]
+            if previous["signature"] == group["signature"] and previous.get("questions_only"):
+                current = previous
+
+        if current is None:
             current = {
                 "number": len(sections) + 1,
                 "signature": group["signature"],
                 "slots": group["slots"],
                 "rows": [],
+                "questions_only": is_question,
             }
             sections.append(current)
+            if fiche_code != "NOTE_27B" and not is_question:
+                data_sections[group["signature"]] = current
         current["rows"].append({"poste": group["poste"], "cells": group["cells"]})
 
     for section in sections:
@@ -259,17 +378,12 @@ def build_accounting_sections(values, max_rows=30, fiche_code=None, single_table
                 if len(section["rows"]) == 1
                 else "Questions de contrôle"
             )
-        elif len(sections) == 1:
-            section["title"] = "Tableau comptable"
-        elif labels == ["Valeur"]:
-            section["title"] = "Informations générales"
         else:
-            section["title"] = f"Tableau {section['number']} - {' / '.join(labels)}"
+            section["title"] = _section_title(labels, section["rows"])
         section["column_count"] = len(section["slots"])
         section.pop("signature", None)
+        section.pop("questions_only", None)
     if fiche_code == "NOTE_27B":
         sections = _complete_note_27b_table(sections)
-    if single_table:
-        sections = _merge_into_single_table(sections, fiche_code=fiche_code)
     return sections
 

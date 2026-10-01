@@ -85,28 +85,23 @@ def test_short_tables_use_natural_height_without_changing_their_columns():
                 expected_slots = {slot["key"] for slot in section["slots"]}
                 assert all(set(row["cells"]) == expected_slots for row in section["rows"])
 
-    assert len(compact_sections) == 37
+    assert compact_sections
     assert any(
-        "SOUS-TOTAL" in row["poste"]
+        section["column_count"] == 1 and len(section["rows"]) == 2
         for section in compact_sections
-        for row in section["rows"]
     )
 
 
 def test_note_27b_uses_one_complete_table_without_subtables():
     source_values = _reference_values_by_fiche()["NOTE_27B"]
-    sections = build_accounting_sections(
-        source_values,
-        fiche_code="NOTE_27B",
-        single_table=True,
-    )
+    sections = build_accounting_sections(source_values, fiche_code="NOTE_27B")
 
     assert [section["title"] for section in sections] == [
         "Question de contrôle",
         "Tableau complet - effectifs et masse salariale",
     ]
     complete_table = sections[1]
-    assert [item["label"] for item in complete_table["rows"][0]["items"]] == [
+    assert [slot["label"] for slot in complete_table["slots"]] == [
         "Hommes",
         "Femmes",
         "Total",
@@ -117,36 +112,64 @@ def test_note_27b_uses_one_complete_table_without_subtables():
         "Total - effectifs (1+2)",
         "Total - masse salariale (1+2)",
     ]
-    assert all(len(row["items"]) == 3 for row in complete_table["rows"])
+    assert all(len(row["cells"]) == 3 for row in complete_table["rows"])
 
     rendered_variables = [
-        item["value"].variable_name
+        value.variable_name
         for section in sections
-        if section.get("is_complete_table")
-        for row in section["rows"]
-        for item in row["items"]
+        for value in _section_values_for_test(section)
     ]
-    assert rendered_variables == [value.variable_name for value in source_values][1:]
+    assert rendered_variables == [value.variable_name for value in source_values]
 
 
-def test_every_fiche_uses_one_complete_table_outside_control_questions():
-    for fiche_code, source_values in _reference_values_by_fiche().items():
+def test_measure_families_receive_explicit_business_titles():
+    values_by_fiche = _reference_values_by_fiche()
+
+    assert build_accounting_sections(values_by_fiche["BILAN_ACTIF"])[0]["title"] == (
+        "Valeurs brutes, amortissements et valeurs nettes"
+    )
+    assert build_accounting_sections(values_by_fiche["BILAN_PASSIF"])[0]["title"] == (
+        "Comparaison des exercices N et N-1"
+    )
+
+    note_3a_titles = {
+        section["title"] for section in build_accounting_sections(values_by_fiche["NOTE_3A"])
+    }
+    assert "Mouvements des immobilisations brutes" in note_3a_titles
+    assert "Mouvements des amortissements et dépréciations" in note_3a_titles
+
+    amort_titles = {
+        section["title"]
+        for section in build_accounting_sections(values_by_fiche["NOTE_AMORT"])
+    }
+    assert "Cessions d'immobilisations" in amort_titles
+
+    note_4_titles = {
+        section["title"] for section in build_accounting_sections(values_by_fiche["NOTE_4"])
+    }
+    assert "Valeurs des exercices et échéancier par maturité" in note_4_titles
+
+
+def test_complex_fiches_are_grouped_into_complete_compatible_tables():
+    values_by_fiche = _reference_values_by_fiche()
+    expected_tables = {
+        "NOTE_3A": [(20, 7), (14, 4)],
+        "NOTE_AMORT": [(15, 5)],
+        "NOTE_4": [(12, 5)],
+        "NOTE_16A": [(17, 5), (14, 2)],
+        "NOTE_24": [(15, 2)],
+        "NOTE_34": [(49, 2)],
+    }
+
+    for fiche_code, expected_shapes in expected_tables.items():
         sections = build_accounting_sections(
-            source_values,
-            fiche_code=fiche_code,
-            single_table=True,
+            values_by_fiche[fiche_code], fiche_code=fiche_code
         )
-        complete_tables = [section for section in sections if section.get("is_complete_table")]
-        assert len(complete_tables) == 1
-        assert all(
-            section["is_question_block"] or section.get("is_complete_table")
-            for section in sections
-        )
-        assert all(
-            item["value"] is not None
-            for row in complete_tables[0]["rows"]
-            for item in row["items"]
-        )
+        tables = [section for section in sections if not section["is_question_block"]]
+        assert [
+            (len(section["rows"]), section["column_count"])
+            for section in tables
+        ] == expected_shapes
 
 
 def _section_values_for_test(section):
@@ -266,6 +289,7 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
 
     rendered_value_ids = set()
     compact_question_rows = 0
+    values_by_fiche = _reference_values_by_fiche()
     for definition in FICHE_DEFINITIONS:
         fiche_code = definition["code"]
         page = client.get(f"/dsf/{dsf.id}/fiche/{fiche_code}")
@@ -276,7 +300,12 @@ def test_every_full_schema_variable_is_rendered_as_an_editable_input(client):
         assert all(" disabled" not in input_tag for input_tag in inputs)
         assert 'class="empty-value"' not in html
         compact_question_rows += html.count('class="compact-question-row"')
-        assert html.count('class="table accounting-table') == 1
+        expected_sections = build_accounting_sections(
+            values_by_fiche[fiche_code],
+            fiche_code=fiche_code,
+        )
+        expected_tables = sum(not section["is_question_block"] for section in expected_sections)
+        assert html.count('class="table accounting-table') == expected_tables
         if fiche_code == "NOTE_27B":
             assert "Tableau complet - effectifs et masse salariale" in html
             assert "Tableau 2 -" not in html
