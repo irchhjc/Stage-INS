@@ -65,7 +65,7 @@ def fiche_detail(dsf_id, fiche_code):
         .order_by(ImportColumn.column_index)
         .all()
     )
-    sections = build_accounting_sections(values, fiche_code=fiche_code)
+    sections = build_accounting_sections(values)
     all_issues = run_validation_rules(dsf.id)
     statuses, issue_codes = _sidebar(dsf, all_issues)
     completed, total = _progress_counts(statuses)

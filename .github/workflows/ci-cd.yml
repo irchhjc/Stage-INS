@@ -86,7 +86,7 @@ jobs:
     needs: [tests, e2e, image]
     environment:
       name: production
-      url: https://dsf-compta-inscg.tech
+      url: https://srv2013685.hstgr.cloud
     concurrency:
       group: dsf-production
       cancel-in-progress: false
@@ -148,23 +148,4 @@ jobs:
             'cd /opt/dsf-control && chmod 755 deploy/*.sh && ./deploy/ci_deploy.sh'
 
       - name: Verifier le service public
-        shell: bash
-        run: |
-          set -u
-          for attempt in $(seq 1 20); do
-            if curl --fail --show-error --silent \
-              --connect-timeout 10 --max-time 15 \
-              https://dsf-compta-inscg.tech/healthz; then
-              echo
-              echo "Service public disponible (tentative $attempt/20)."
-              exit 0
-            fi
-
-            if [ "$attempt" -lt 20 ]; then
-              echo "HTTPS pas encore pret (tentative $attempt/20), nouvel essai dans 3 secondes..."
-              sleep 3
-            fi
-          done
-
-          echo "Le service public HTTPS n'est pas devenu disponible." >&2
-          exit 1
+        run: curl --fail --show-error --silent --retry 10 --retry-delay 3 https://srv2013685.hstgr.cloud/healthz

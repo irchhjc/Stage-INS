@@ -61,25 +61,29 @@ openssl rand -base64 36 | tr -dc 'A-Za-z0-9' | head -c 32; echo
 
 Utilisez uniquement des lettres et chiffres pour `POSTGRES_PASSWORD`. Aucun secret ne doit être ajouté à Git.
 
-Cette instance utilise le domaine public `dsf-compta-inscg.tech`. Vérifiez d'abord
-que son enregistrement DNS `A` pointe vers l'adresse du VPS :
+Sans domaine acheté, utilisez le nom d'hôte fourni par Hostinger. Vérifiez d'abord
+qu'il pointe vers l'adresse du VPS :
 
 ```bash
-getent ahostsv4 dsf-compta-inscg.tech
+getent ahostsv4 srv2013685.hstgr.cloud
 ```
 
 La sortie doit contenir `92.113.26.206`. Configurez ensuite :
 
 ```text
-SITE_ADDRESS=dsf-compta-inscg.tech
+SITE_ADDRESS=srv2013685.hstgr.cloud
 SESSION_COOKIE_SECURE=true
 ```
 
 L'accès direct `http://92.113.26.206` ne doit servir qu'au diagnostic temporaire :
 il ne chiffre ni les identifiants ni les cookies de session.
 
-N'utilisez pas le nom d'hôte technique `srv2013685.hstgr.cloud` comme adresse HTTPS
-publique : Caddy sert le certificat du domaine configuré dans `SITE_ADDRESS`.
+Avec un domaine, créez d'abord un enregistrement DNS `A` vers `92.113.26.206`, puis utilisez :
+
+```text
+SITE_ADDRESS=dsf.votre-domaine.com
+SESSION_COOKIE_SECURE=true
+```
 
 ## 3. Démarrer et vérifier
 
@@ -92,11 +96,11 @@ docker compose --env-file .env.production -f compose.prod.yaml logs --tail=200 w
 Vérifiez ensuite :
 
 ```bash
-curl -f https://dsf-compta-inscg.tech/healthz
+curl -f https://srv2013685.hstgr.cloud/healthz
 ```
 
 Le résultat attendu est `{"status":"ok"}`. Ouvrez ensuite
-`https://dsf-compta-inscg.tech`.
+`https://srv2013685.hstgr.cloud`.
 
 ## 4. Migrer la base et les classeurs Windows existants
 

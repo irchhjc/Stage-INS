@@ -72,14 +72,11 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         expect(page.get_by_text("DSF saisies sur la période", exact=True)).to_be_visible()
         expect(page.locator("#performanceDateFrom")).to_be_visible()
         expect(page.locator("#performanceDateTo")).to_be_visible()
-        page.goto(f"{base_url}/admin/?tab=controllers")
-        page.get_by_label("Nom d'utilisateur", exact=True).fill("controleur")
-        page.get_by_label("Mot de passe", exact=True).fill("motdepasse10")
+        page.get_by_label("Nom d'utilisateur").fill("controleur")
+        page.get_by_label("Mot de passe").fill("motdepasse10")
         page.get_by_role("button", name="Créer le compte").click()
         expect(page.get_by_text("Le compte controleur a été créé.")).to_be_visible()
 
-        page.goto(f"{base_url}/admin/?tab=assignments")
-        expect(page.locator("#assignments-pane")).to_be_visible()
         assigned_row = page.locator("#adminDsfRows tr", has_text="DSF-001")
         unassigned_row = page.locator("#adminDsfRows tr", has_text="DSF-002")
         forbidden_href = unassigned_row.get_by_role("link", name="Voir").get_attribute("href")
@@ -91,13 +88,10 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         expect(assigned_row.get_by_text("Affectation verrouillée")).to_be_visible()
         expect(assigned_row.locator("select[name=user_id]")).to_have_count(0)
 
-        page.goto(f"{base_url}/admin/?tab=controllers")
-        page.get_by_label("Nom d'utilisateur", exact=True).fill("controleur2")
-        page.get_by_label("Mot de passe", exact=True).fill("motdepasse20")
+        page.get_by_label("Nom d'utilisateur").fill("controleur2")
+        page.get_by_label("Mot de passe").fill("motdepasse20")
         page.get_by_role("button", name="Créer le compte").click()
         expect(page.get_by_text("Le compte controleur2 a été créé.")).to_be_visible()
-        page.goto(f"{base_url}/admin/?tab=assignments")
-        expect(page.locator("#assignments-pane")).to_be_visible()
         bulk_form = page.locator(".bulk-assignment-form")
         bulk_form.locator("select[name=user_id]").select_option(label="controleur2")
         page.once("dialog", lambda dialog: dialog.accept())
@@ -110,8 +104,7 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         _login(page, base_url, "controleur", "motdepasse10")
         expect(page.get_by_role("link", name="Mes DSF")).to_be_visible()
         expect(page.get_by_text("DSF-001", exact=True)).to_be_visible()
-        expect(page.get_by_text("DSF-002", exact=True)).to_be_visible()
-        expect(page.get_by_text("Utilisée par controleur2", exact=True)).to_be_visible()
+        expect(page.get_by_text("DSF-002", exact=True)).to_have_count(0)
 
         forbidden_response = page.goto(f"{base_url}{forbidden_href}")
         assert forbidden_response.status == 403
@@ -138,9 +131,7 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
         input_box = editor.locator(".value-input").bounding_box()
         actions_box = status_actions.bounding_box()
         last_button_box = status_actions.locator("button").last.bounding_box()
-        separated_horizontally = input_box["x"] + input_box["width"] <= actions_box["x"] + 1
-        separated_vertically = input_box["y"] + input_box["height"] <= actions_box["y"] + 1
-        assert separated_horizontally or separated_vertically
+        assert input_box["x"] + input_box["width"] <= actions_box["x"] + 1
         assert last_button_box["x"] + last_button_box["width"] <= actions_box["x"] + actions_box["width"] + 1
 
         validation_context = browser.new_context(viewport={"width": 1440, "height": 1000})

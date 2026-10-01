@@ -45,7 +45,7 @@ def activity_groups(session_id=None, assigned_only=False):
     by_dsf = {}
     for dsf_id, owner in owners.items():
         key = json.dumps(parts[dsf_id], ensure_ascii=False, separators=(",", ":"))
-        label = " - ".join(parts[dsf_id]) or "Sous-branche non renseignée"
+        label = " — ".join(parts[dsf_id]) or "Sous-branche non renseignée"
         by_dsf[dsf_id] = {"key": key, "label": label}
         group = groups.setdefault(key, {"key": key, "label": label, "ids": [], "free": 0})
         group["ids"].append(dsf_id)

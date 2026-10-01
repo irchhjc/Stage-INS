@@ -34,14 +34,14 @@ def test_duplicate_activity_headers_existing_data_and_live_corrections(client):
     assert [c.column_index for c in columns]==[10,11]
     activity,groups=activity_groups()
     assert len(groups)==1 and groups[0]['free']==2
-    assert activity[rows[0].id]['label']=='A01001 - Agriculture'
+    assert activity[rows[0].id]['label']=='A01001 — Agriculture'
     # Grouping reflects current DB values, without reimporting or a stale cache.
     cell=DSFValue.query.filter_by(dsf_id=rows[0].id,import_column_id=columns[1].id).one()
     original=cell.original_value
     cell.current_value=serialize_value('Culture');db.session.commit()
     assert len(activity_groups()[1])==2 and cell.original_value==original
     html=client.get('/admin/').get_data(as_text=True)
-    assert 'A01001 - Culture' in html and 'A01001 - Agriculture' in html
+    assert 'A01001 — Culture' in html and 'A01001 — Agriculture' in html
 
 
 def test_branch_assignment_scope_and_repeat(client):

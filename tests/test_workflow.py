@@ -438,8 +438,7 @@ def test_admin_creates_assigns_and_restricts_controller_access(client, imported_
     dashboard = client.get("/")
     html = dashboard.get_data(as_text=True)
     assert "DSF-001" in html
-    assert "DSF-002" in html
-    assert "Utilisée par controleur2" in html
+    assert "DSF-002" not in html
     assert client.get(f"/dsf/{first.id}").status_code == 200
     assert client.get(f"/dsf/{second.id}").status_code == 403
     assert client.get("/admin/").status_code == 403
@@ -451,8 +450,6 @@ def test_admin_creates_assigns_and_restricts_controller_access(client, imported_
         json={"value": "DSF-001-C", "status": "verified", "operator": "faux-operateur"},
     )
     assert edited.status_code == 200
-    assert "DSF-001" in client.get("/my-dsfs").get_data(as_text=True)
-    assert "DSF-002" not in client.get("/my-dsfs").get_data(as_text=True)
     latest_log = AuditLog.query.filter_by(dsf_id=first.id).order_by(AuditLog.id.desc()).first()
     assert latest_log.operator == "controleur"
 
@@ -470,16 +467,6 @@ def test_admin_creates_assigns_and_restricts_controller_access(client, imported_
     assert worksheet.max_row == imported_session.header_row + 1
     assert "JOURNAL_CONTROLE" in workbook.sheetnames
     workbook.close()
-
-
-def test_admin_dashboard_uses_stable_section_tabs(client, imported_session):
-    overview = client.get("/admin/").get_data(as_text=True)
-    assignments = client.get("/admin/?tab=assignments").get_data(as_text=True)
-    invalid = client.get("/admin/?tab=unknown").get_data(as_text=True)
-
-    assert 'class="nav-link active" id="overview-tab"' in overview
-    assert 'class="nav-link active" id="assignments-tab"' in assignments
-    assert 'class="nav-link active" id="overview-tab"' in invalid
 
 
 def test_global_dashboard_export_disabled_when_empty(client):

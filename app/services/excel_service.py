@@ -11,7 +11,6 @@ from app.config.fiche_mapping import FICHE_DEFINITIONS
 from app.extensions import db
 from app.models import DSF, DSFValue, FicheStatus, ImportColumn, ImportSession
 from app.services.mapping_service import MappingError, build_column_mapping, normalize_label
-from app.services.schema_service import identify_schema
 from app.services.value_codec import deserialize_value, display_value, serialize_value
 
 
@@ -129,7 +128,6 @@ def inspect_workbook(filepath, sheet_name=None, header_row=None):
             "headers": headers,
             "mapping": mapping,
             "identity_positions": _identity_positions(headers),
-            "schema_profile": identify_schema(headers),
         }
     finally:
         workbook.close()
@@ -166,9 +164,6 @@ def import_workbook(filepath, original_filename, sheet_name=None, header_row=Non
         row_count=0,
         column_count=metadata["max_column"],
     )
-    # Information transitoire utilisée par le message de confirmation. Les
-    # en-têtes et leur position restent la source persistée dans ImportColumn.
-    import_session.schema_profile = metadata["schema_profile"]
     db.session.add(import_session)
     db.session.flush()
 
@@ -267,11 +262,11 @@ def import_workbook(filepath, original_filename, sheet_name=None, header_row=Non
 
 def preview_identity(dsf):
     return {
-        "NIU": dsf.niu or "-",
-        "NUMERO DE LA DSF": dsf.numero_dsf or "-",
-        "Raison sociale": dsf.raison_sociale or "-",
-        "Sigle": dsf.sigle or "-",
-        "Année": dsf.annee or "-",
+        "NIU": dsf.niu or "—",
+        "NUMERO DE LA DSF": dsf.numero_dsf or "—",
+        "Raison sociale": dsf.raison_sociale or "—",
+        "Sigle": dsf.sigle or "—",
+        "Année": dsf.annee or "—",
     }
 
 

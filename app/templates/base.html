@@ -12,7 +12,7 @@
   <header id="appHeader" class="app-header">
     <div class="institution-ribbon">
       <div class="container-fluid px-3 px-lg-4 institution-ribbon-inner">
-        <a class="institution-identity" href="{{ url_for('main.dashboard') }}" aria-label="Accueil - Contrôle de conformité DSF">
+        <a class="institution-identity" href="{{ url_for('main.dashboard') }}" aria-label="Accueil — Contrôle de conformité DSF">
           {% if primary_logo %}
           <span class="logo-shell ins-logo-shell"><img src="{{ primary_logo.url }}" alt="{{ primary_logo.alt }}"></span>
           {% else %}<span class="brand-mark">INS</span>{% endif %}
@@ -49,8 +49,7 @@
           {% if current_user %}
           <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
             <a class="nav-link" href="{{ url_for('main.dashboard') }}">Tableau de bord</a>
-            <a class="nav-link" href="{{ url_for('main.dsf_list') }}">Toutes les DSF</a>
-            {% if not current_user.is_admin %}<a class="nav-link" href="{{ url_for('main.my_dsf_list') }}">Mes DSF</a>{% endif %}
+            <a class="nav-link" href="{{ url_for('main.dsf_list') }}">{{ 'Toutes les DSF' if current_user.is_admin else 'Mes DSF' }}</a>
             <a class="nav-link" href="{{ url_for('main.history') }}">Historique</a>
             <a class="nav-link" href="{{ url_for('admin.global_search') }}">Recherche globale</a>
             {% if current_user.is_admin %}

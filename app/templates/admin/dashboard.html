@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% from '_macros.html' import status_badge %}
-{% block title %}Administration - Contrôle DSF{% endblock %}
+{% block title %}Administration — Contrôle DSF{% endblock %}
 {% block content %}
 <div class="page-heading align-items-end">
   <div><p class="eyebrow">ADMINISTRATION</p><h1>Pilotage et affectations</h1><p class="text-secondary mb-0">Suivez les volumes saisis, l'activité de contrôle et la progression des équipes.</p></div>
@@ -15,22 +15,6 @@
   </div>
 </div>
 
-<nav class="admin-tabs mt-4" aria-label="Sections d'administration">
-  <div class="nav nav-pills" id="adminTabs" role="tablist">
-    <button class="nav-link {{ 'active' if active_tab == 'overview' else '' }}" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-pane" data-admin-tab="overview" type="button" role="tab" aria-controls="overview-pane" aria-selected="{{ 'true' if active_tab == 'overview' else 'false' }}">
-      <span class="admin-tab-index">01</span><span><strong>Vue d'ensemble</strong><small>Performance et activitÃ©</small></span>
-    </button>
-    <button class="nav-link {{ 'active' if active_tab == 'controllers' else '' }}" id="controllers-tab" data-bs-toggle="tab" data-bs-target="#controllers-pane" data-admin-tab="controllers" type="button" role="tab" aria-controls="controllers-pane" aria-selected="{{ 'true' if active_tab == 'controllers' else 'false' }}">
-      <span class="admin-tab-index">02</span><span><strong>ContrÃ´leurs</strong><small>{{ controllers|length }} compte(s) actif(s)</small></span>
-    </button>
-    <button class="nav-link {{ 'active' if active_tab == 'assignments' else '' }}" id="assignments-tab" data-bs-toggle="tab" data-bs-target="#assignments-pane" data-admin-tab="assignments" type="button" role="tab" aria-controls="assignments-pane" aria-selected="{{ 'true' if active_tab == 'assignments' else 'false' }}">
-      <span class="admin-tab-index">03</span><span><strong>Affectations</strong><small>Classeurs et sous-branches</small></span>
-    </button>
-  </div>
-</nav>
-
-<div class="tab-content" id="adminTabContent">
-<div class="tab-pane fade {{ 'show active' if active_tab == 'overview' else '' }}" id="overview-pane" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
 <section class="card panel-card mt-4" aria-labelledby="globalSearchTitle">
   <div class="card-body p-4">
     <h2 id="globalSearchTitle" class="h5">Rechercher dans toutes les DSF</h2>
@@ -53,12 +37,11 @@
         <p class="small text-secondary mb-0">Tous les classeurs · période du {{ performance.date_from.strftime('%d/%m/%Y') }} au {{ performance.date_to.strftime('%d/%m/%Y') }} · heure {{ performance.timezone }}</p>
       </div>
       <form class="performance-filter" method="get" action="{{ url_for('admin.dashboard') }}">
-        <input type="hidden" name="tab" value="overview">
         {% if active_session %}<input type="hidden" name="session_id" value="{{ active_session.id }}">{% endif %}
         <div><label for="performanceDateFrom">Du</label><input id="performanceDateFrom" class="form-control form-control-sm" type="date" name="date_from" value="{{ performance.date_from.isoformat() }}" required></div>
         <div><label for="performanceDateTo">Au</label><input id="performanceDateTo" class="form-control form-control-sm" type="date" name="date_to" value="{{ performance.date_to.isoformat() }}" required></div>
         <button class="btn btn-sm btn-primary" type="submit">Actualiser</button>
-        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.dashboard', tab='overview', session_id=active_session.id if active_session else None) }}">30 jours</a>
+        <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.dashboard', session_id=active_session.id if active_session else None) }}">30 jours</a>
       </form>
     </div>
 
@@ -111,13 +94,13 @@
             <td class="hm-name-col">{{ row.user.display_label }}</td>
             {% for day in row.days %}
             <td class="hm-cell activity-{{ day.level }}"
-                title="{{ day.date.strftime('%d/%m/%Y') }} - {{ row.user.display_label }} : {{ day.dsfs }} DSF active(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
+                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ row.user.display_label }} : {{ day.dsfs }} DSF active(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
               {%- if day.dsfs > 0 %}<span>{{ day.dsfs }}</span>{% endif -%}
             </td>
             {% endfor %}
-            <td class="hm-total-col"><strong>{{ row.total_dsfs if row.total_dsfs else '-' }}</strong></td>
-            <td class="hm-total-col text-secondary">{{ row.total_fiches if row.total_fiches else '-' }}</td>
-            <td class="hm-total-col text-secondary">{{ row.total_corrections if row.total_corrections else '-' }}</td>
+            <td class="hm-total-col"><strong>{{ row.total_dsfs if row.total_dsfs else '—' }}</strong></td>
+            <td class="hm-total-col text-secondary">{{ row.total_fiches if row.total_fiches else '—' }}</td>
+            <td class="hm-total-col text-secondary">{{ row.total_corrections if row.total_corrections else '—' }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -142,34 +125,29 @@
   </div>
 </section>
 
-</div>
-<div class="tab-pane fade {{ 'show active' if active_tab == 'controllers' else '' }}" id="controllers-pane" role="tabpanel" aria-labelledby="controllers-tab" tabindex="0">
-<section id="controllerAccounts" class="card panel-card mt-4" aria-labelledby="controllerAccountsTitle">
+<section id="accountNames" class="card panel-card mt-4" aria-labelledby="accountNamesTitle">
   <div class="card-body p-4">
-    <h2 id="controllerAccountsTitle" class="h5">Gestion des comptes utilisateurs</h2>
-    <p class="small text-secondary">Modifiez le nom complet, l'identifiant et, si nécessaire, le mot de passe d'un contrôleur. Laissez le nouveau mot de passe vide pour conserver l'actuel. Les affectations restent liées au même compte.</p>
-    <div class="table-responsive"><table class="table table-hover align-middle data-table">
-      <thead><tr><th>Rôle et état</th><th>Nom complet</th><th>Nom d'utilisateur</th><th>Nouveau mot de passe</th><th>Action</th></tr></thead>
+    <h2 id="accountNamesTitle" class="h5">Noms complets des utilisateurs</h2>
+    <p class="small text-secondary">Associez un nom complet à chaque compte existant. Les identifiants, mots de passe et affectations sont conservés.</p>
+    <div class="table-responsive"><table class="table align-middle">
+      <thead><tr><th>Nom d'utilisateur</th><th>Rôle</th><th>Compte</th><th>Nom complet</th></tr></thead>
       <tbody>{% for account in account_users %}<tr>
-        <td><strong>{{ 'Administrateur' if account.is_admin else 'Contrôleur' }}</strong><small class="d-block text-secondary">{{ 'Actif' if account.is_active else 'Désactivé' }}</small></td>
-        {% if account.is_admin %}
-        <td><label class="visually-hidden" for="fullName{{ account.id }}">Nom complet de {{ account.username }}</label><input id="fullName{{ account.id }}" name="full_name" form="accountName{{ account.id }}" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom"></td>
-        <td>{{ account.username }}</td><td class="text-secondary">Non modifié ici</td>
-        <td><form id="accountName{{ account.id }}" method="post" action="{{ url_for('admin.update_full_name', user_id=account.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-outline-primary" type="submit">Enregistrer le nom</button></form></td>
-        {% else %}
-        <td><label class="visually-hidden" for="controllerFullName{{ account.id }}">Nom complet de {{ account.username }}</label><input id="controllerFullName{{ account.id }}" name="full_name" form="controllerAccount{{ account.id }}" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom"></td>
-        <td><label class="visually-hidden" for="controllerUsername{{ account.id }}">Nom d'utilisateur de {{ account.username }}</label><input id="controllerUsername{{ account.id }}" name="username" form="controllerAccount{{ account.id }}" class="form-control" pattern="[a-z0-9._-]{3,50}" minlength="3" maxlength="50" value="{{ account.username }}" required autocapitalize="none" spellcheck="false"></td>
-        <td><label class="visually-hidden" for="controllerPassword{{ account.id }}">Nouveau mot de passe de {{ account.username }}</label><input id="controllerPassword{{ account.id }}" name="new_password" form="controllerAccount{{ account.id }}" type="password" class="form-control" minlength="10" autocomplete="new-password" placeholder="Conserver l'actuel"></td>
-        <td><form id="controllerAccount{{ account.id }}" method="post" action="{{ url_for('admin.update_controller', controller_id=account.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit">Mettre à jour</button></form></td>
-        {% endif %}
+        <td>{{ account.username }}</td><td>{{ 'Administrateur' if account.is_admin else 'Contrôleur' }}</td>
+        <td>{{ 'Actif' if account.is_active else 'Désactivé' }}</td>
+        <td><form class="d-flex gap-2" method="post" action="{{ url_for('admin.update_full_name', user_id=account.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label class="visually-hidden" for="fullName{{ account.id }}">Nom complet de {{ account.username }}</label>
+          <input id="fullName{{ account.id }}" name="full_name" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom">
+          <button class="btn btn-outline-primary" type="submit">Enregistrer</button>
+        </form></td>
       </tr>{% endfor %}</tbody>
     </table></div>
   </div>
 </section>
 
 <div class="row g-4 mt-1">
-  <div class="col-xl-4 d-flex flex-column gap-4">
-    <div class="card panel-card"><div class="card-body p-4">
+  <div class="col-xl-4">
+    <div class="card panel-card h-100"><div class="card-body p-4">
       <h2 class="h5">Créer un contrôleur</h2>
       <p class="small text-secondary">Le nom doit être en minuscules et le mot de passe comporter au moins 10 caractères.</p>
       <form method="post" action="{{ url_for('admin.create_controller') }}">
@@ -180,39 +158,11 @@
         <button class="btn btn-success w-100">Créer le compte</button>
       </form>
     </div></div>
-    <div class="card panel-card"><div class="card-body p-4">
-      <h2 class="h5">Importer des contrôleurs</h2>
-      <p class="small text-secondary mb-2">Créez plusieurs comptes depuis un fichier Excel contenant les colonnes <strong>NOM COMPLET</strong>, <strong>NOM UTILISATEUR</strong> et <strong>MOT DE PASSE</strong>.</p>
-      <p class="small text-secondary">Les mots de passe doivent contenir au moins 10 caractères. Ils sont immédiatement hachés et ne sont jamais affichés dans l'application. Les lignes valides sont créées et les autres sont signalées dans le bilan.</p>
-      <a class="btn btn-outline-primary w-100 mb-3" href="{{ url_for('admin.download_controller_template') }}">Télécharger le modèle Excel</a>
-      <form method="post" action="{{ url_for('admin.import_controller_accounts') }}" enctype="multipart/form-data">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="mb-3">
-          <label class="form-label" for="controllerImportFile">Fichier des contrôleurs</label>
-          <input id="controllerImportFile" name="file" type="file" class="form-control" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
-        </div>
-        <button class="btn btn-success w-100" type="submit">Importer les comptes</button>
-      </form>
-    </div></div>
-    <div id="deleteControllers" class="card border-danger"><div class="card-body p-4">
-      <h2 class="h5 text-danger">Réinitialiser les contrôleurs</h2>
-      <p class="small text-secondary">Supprime les <strong>{{ controller_deletion_summary.controllers }}</strong> compte(s) contrôleur et retire leurs <strong>{{ controller_deletion_summary.assigned }}</strong> affectation(s), dont {{ controller_deletion_summary.in_progress }} en cours et {{ controller_deletion_summary.completed }} terminée(s).</p>
-      <p class="small mb-3"><strong>Les DSF, statuts, corrections et historiques sont conservés.</strong> Les comptes administrateurs ne sont pas concernés.</p>
-      <form method="post" action="{{ url_for('admin.delete_all_controllers') }}" onsubmit="return window.confirm('Supprimer définitivement tous les comptes contrôleurs ? Les DSF seront conservées mais deviendront non affectées.');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="confirmation" value="DELETE_ALL_CONTROLLERS">
-        <div class="form-check mb-3">
-          <input id="confirmDeleteControllers" class="form-check-input" type="checkbox" required {{ 'disabled' if controller_deletion_summary.controllers == 0 else '' }}>
-          <label class="form-check-label small" for="confirmDeleteControllers">Je confirme la suppression de tous les comptes contrôleurs.</label>
-        </div>
-        <button class="btn btn-danger w-100" type="submit" {{ 'disabled' if controller_deletion_summary.controllers == 0 else '' }}>Supprimer tous les contrôleurs</button>
-      </form>
-    </div></div>
   </div>
   <div class="col-xl-8">
     <div class="card panel-card h-100"><div class="card-body p-4">
       <h2 class="h5">Progression des contrôleurs</h2>
-      <div class="table-responsive"><table class="table table-hover align-middle mb-0 data-table"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th><th>Retrait des affectations</th></tr></thead><tbody>
+      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th><th>Retrait des affectations</th></tr></thead><tbody>
         {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.display_label }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td>
         <td>
           <form method="post" action="{{ url_for('admin.unassign_not_started', controller_id=row.user.id) }}"
@@ -230,12 +180,10 @@
   </div>
 </div>
 
-</div>
-<div class="tab-pane fade {{ 'show active' if active_tab == 'assignments' else '' }}" id="assignments-pane" role="tabpanel" aria-labelledby="assignments-tab" tabindex="0">
 <div class="card panel-card mt-4">
   <div class="card-header bg-white border-0 p-4 pb-2">
-    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h2 class="h5 mb-1">Affecter les DSF</h2><p class="small text-secondary mb-0">Les DSF libres sont visibles par tous les contrôleurs. Seul le contrôleur qui la prend en charge peut la modifier.</p></div>
-      {% if sessions %}<select id="adminSessionSelector" class="form-select session-selector">{% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} - {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}</select>{% endif %}
+    <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h2 class="h5 mb-1">Affecter les DSF</h2><p class="small text-secondary mb-0">Une DSF non assignée est visible uniquement par l'administrateur.</p></div>
+      {% if sessions %}<select id="adminSessionSelector" class="form-select session-selector">{% for item in sessions %}<option value="{{ item.id }}" {{ 'selected' if active_session and item.id == active_session.id else '' }}>{{ item.filename }} — {{ item.imported_at.strftime('%d/%m/%Y %H:%M') }}</option>{% endfor %}</select>{% endif %}
     </div>
     {% if active_session %}
     <div class="bulk-assignment-panel mt-3">
@@ -250,11 +198,10 @@
     <section class="mt-3" aria-labelledby="branchTitle">
       <h3 class="h6" id="branchTitle">Afficher et affecter par sous-branche d’activité</h3>
       <form method="get" class="d-flex gap-2 mb-3">
-        <input type="hidden" name="tab" value="assignments">
         <input type="hidden" name="session_id" value="{{ active_session.id }}">
         <label class="visually-hidden" for="activityBranch">Sous-branche</label>
         <select id="activityBranch" name="branch" class="form-select"><option value="">Toutes les sous-branches</option>
-        {% for item in branches %}<option value="{{ item.key }}" {{ 'selected' if branch == item.key else '' }}>{{ item.label }} - {{ item.ids|length }} DSF, {{ item.free }} libres</option>{% endfor %}</select>
+        {% for item in branches %}<option value="{{ item.key }}" {{ 'selected' if branch == item.key else '' }}>{{ item.label }} — {{ item.ids|length }} DSF, {{ item.free }} libres</option>{% endfor %}</select>
         <button class="btn btn-outline-primary">Afficher</button>
       </form>
       {% if branch %}{% for item in branches if item.key == branch %}
@@ -269,14 +216,12 @@
     <input id="adminDsfSearch" class="form-control mt-3" placeholder="Rechercher NIU, numéro DSF, raison sociale ou contrôleur…">
     {% endif %}
   </div>
-  <div class="table-responsive"><table class="table table-hover align-middle mb-0 data-table"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Sous-branche</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
-    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '-' }}</td><td>{{ dsf.numero_dsf or '-' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '-' }}</td><td>{{ activity[dsf.id].label }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
+  <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Sous-branche</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
+    {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ activity[dsf.id].label }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
       {% if dsf.assignee %}<div class="assigned-lock"><span class="badge text-bg-success">✓ Affectée</span><strong>{{ dsf.assignee.display_label }}</strong><small>Affectation verrouillée</small></div>
       {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
     </td><td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Voir</a></td></tr>
     {% else %}<tr><td colspan="8" class="text-center py-5 text-secondary">Aucune DSF importée.</td></tr>{% endfor %}
   </tbody></table></div>
-</div>
-</div>
 </div>
 {% endblock %}

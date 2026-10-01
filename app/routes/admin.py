@@ -1,29 +1,16 @@
 from datetime import datetime, timezone
-from pathlib import Path
 
-from sqlalchemy import delete, update, or_
+from sqlalchemy import update, or_
 from sqlalchemy.orm import joinedload
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
 from app.services.admin_dashboard_service import build_admin_performance, build_controller_daily_stats
-from app.services.auth_service import (
-    admin_required,
-    create_user,
-    current_user,
-    login_required,
-    normalize_full_name,
-    update_controller_account,
-)
+from app.services.auth_service import admin_required, login_required, create_user, current_user, normalize_full_name
 from app.services.dsf_service import search_dsfs
 from app.services.activity_service import activity_groups
-from app.services.controller_import_service import (
-    ControllerImportError,
-    build_controller_import_template,
-    import_controllers,
-)
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -54,33 +41,9 @@ def _controller_progress(controllers):
     return rows
 
 
-def _controller_deletion_summary():
-    controller_ids = [
-        controller_id
-        for (controller_id,) in db.session.query(User.id).filter(User.role == "controller").all()
-    ]
-    if not controller_ids:
-        return {
-            "controllers": 0,
-            "assigned": 0,
-            "in_progress": 0,
-            "completed": 0,
-        }
-    assigned = DSF.query.filter(DSF.assigned_to_id.in_(controller_ids))
-    return {
-        "controllers": len(controller_ids),
-        "assigned": assigned.count(),
-        "in_progress": assigned.filter(DSF.status == "in_progress").count(),
-        "completed": assigned.filter(DSF.status == "completed").count(),
-    }
-
-
 @admin_bp.get("/")
 @admin_required
 def dashboard():
-    active_tab = request.args.get("tab", "overview")
-    if active_tab not in {"overview", "controllers", "assignments"}:
-        active_tab = "overview"
     controllers = User.query.filter_by(role="controller", is_active=True).order_by(User.username).all()
     sessions = ImportSession.query.order_by(ImportSession.imported_at.desc()).all()
     requested_session = request.args.get("session_id", type=int)
@@ -118,8 +81,6 @@ def dashboard():
         term=term,
         selected_status=status,
         performance=performance,
-        active_tab=active_tab,
-        controller_deletion_summary=_controller_deletion_summary(),
     )
 
 
@@ -131,133 +92,7 @@ def create_controller():
         flash(f"Le compte {user.username} a été créé.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
-    return redirect(url_for("admin.dashboard", tab="controllers"))
-
-
-@admin_bp.post("/controllers/<int:controller_id>/account")
-@admin_required
-def update_controller(controller_id):
-    controller = db.get_or_404(User, controller_id)
-    try:
-        update_controller_account(
-            controller,
-            request.form.get("username"),
-            full_name=request.form.get("full_name"),
-            new_password=request.form.get("new_password"),
-        )
-        flash(f"Le compte {controller.username} a été mis à jour.", "success")
-    except ValueError as exc:
-        db.session.rollback()
-        flash(str(exc), "danger")
-    return redirect(url_for("admin.dashboard", tab="controllers", _anchor="controllerAccounts"))
-
-
-@admin_bp.post("/controllers/delete-all")
-@admin_required
-def delete_all_controllers():
-    if request.form.get("confirmation") != "DELETE_ALL_CONTROLLERS":
-        flash("Confirmation invalide. Aucun compte contrôleur n'a été supprimé.", "danger")
-        return redirect(url_for("admin.dashboard", tab="controllers", _anchor="deleteControllers"))
-
-    controller_rows = (
-        db.session.query(User.id, User.username)
-        .filter(User.role == "controller")
-        .order_by(User.id)
-        .all()
-    )
-    if not controller_rows:
-        flash("Aucun compte contrôleur à supprimer.", "info")
-        return redirect(url_for("admin.dashboard", tab="controllers", _anchor="deleteControllers"))
-
-    controller_ids = [row.id for row in controller_rows]
-    usernames = {row.id: row.username for row in controller_rows}
-    assigned_rows = (
-        db.session.query(DSF.id, DSF.assigned_to_id)
-        .filter(DSF.assigned_to_id.in_(controller_ids))
-        .all()
-    )
-    administrator = current_user()
-    try:
-        for dsf_id, controller_id in assigned_rows:
-            db.session.add(
-                AuditLog(
-                    dsf_id=dsf_id,
-                    action="suppression globale des contrôleurs",
-                    old_value=usernames.get(controller_id, "Contrôleur supprimé"),
-                    new_value="Non assignée",
-                    operator=administrator.username,
-                )
-            )
-        db.session.flush()
-        db.session.execute(
-            update(DSF)
-            .where(DSF.assigned_to_id.in_(controller_ids))
-            .values(assigned_to_id=None, assigned_at=None)
-        )
-        db.session.execute(
-            update(DSF)
-            .where(DSF.assigned_by_id.in_(controller_ids))
-            .values(assigned_by_id=None)
-        )
-        deleted_count = db.session.execute(
-            delete(User).where(User.role == "controller")
-        ).rowcount
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise
-
-    flash(
-        f"{deleted_count} compte(s) contrôleur supprimé(s). "
-        f"{len(assigned_rows)} affectation(s) retirée(s). Toutes les DSF ont été conservées.",
-        "success",
-    )
-    return redirect(url_for("admin.dashboard", tab="controllers", _anchor="controllerAccounts"))
-
-
-@admin_bp.get("/users/import-template")
-@admin_required
-def download_controller_template():
-    return send_file(
-        build_controller_import_template(),
-        as_attachment=True,
-        download_name="modele_import_controleurs.xlsx",
-        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-
-
-@admin_bp.post("/users/import")
-@admin_required
-def import_controller_accounts():
-    upload = request.files.get("file")
-    if not upload or not upload.filename:
-        flash("Sélectionnez un fichier Excel .xlsx.", "danger")
-        return redirect(url_for("admin.dashboard", tab="controllers"))
-    if Path(upload.filename).suffix.casefold() != ".xlsx":
-        flash("Seuls les fichiers Excel .xlsx sont acceptés.", "danger")
-        return redirect(url_for("admin.dashboard", tab="controllers"))
-
-    try:
-        result = import_controllers(upload.stream)
-    except ControllerImportError as exc:
-        db.session.rollback()
-        flash(str(exc), "danger")
-        return redirect(url_for("admin.dashboard", tab="controllers"))
-    except Exception:
-        db.session.rollback()
-        raise
-
-    if result.created_count:
-        flash(f"{result.created_count} compte(s) contrôleur créé(s).", "success")
-    if result.rejected_count:
-        details = " ".join(result.rejected_errors[:10])
-        remaining = result.rejected_count - min(result.rejected_count, 10)
-        if remaining:
-            details += f" {remaining} autre(s) ligne(s) rejetée(s)."
-        flash(f"{result.rejected_count} ligne(s) rejetée(s). {details}", "warning")
-    if result.ignored_blank_rows:
-        flash(f"{result.ignored_blank_rows} ligne(s) vide(s) ignorée(s).", "info")
-    return redirect(url_for("admin.dashboard", tab="controllers"))
+    return redirect(url_for("admin.dashboard"))
 
 
 @admin_bp.post("/dsfs/<int:dsf_id>/assign")
@@ -269,12 +104,12 @@ def assign_dsf(dsf_id):
             f"Cette DSF est déjà affectée à {dsf.assignee.username}. Son affectation ne peut plus être modifiée.",
             "warning",
         )
-        return redirect(request.referrer or url_for("admin.dashboard", tab="assignments", session_id=dsf.import_session_id))
+        return redirect(request.referrer or url_for("admin.dashboard", session_id=dsf.import_session_id))
     user_id = request.form.get("user_id", type=int)
     assignee = db.session.get(User, user_id) if user_id else None
     if assignee is None or assignee.role != "controller" or not assignee.is_active:
         flash("Le contrôleur sélectionné est invalide.", "danger")
-        return redirect(request.referrer or url_for("admin.dashboard", tab="assignments", session_id=dsf.import_session_id))
+        return redirect(request.referrer or url_for("admin.dashboard"))
 
     dsf.assignee = assignee
     dsf.assigned_by = current_user()
@@ -290,7 +125,7 @@ def assign_dsf(dsf_id):
     )
     db.session.commit()
     flash(f"DSF {dsf.numero_dsf or dsf.niu} assignée à {assignee.username}.", "success")
-    return redirect(request.referrer or url_for("admin.dashboard", tab="assignments", session_id=dsf.import_session_id))
+    return redirect(request.referrer or url_for("admin.dashboard"))
 
 
 @admin_bp.post("/import-sessions/<int:import_session_id>/assign-all")
@@ -301,7 +136,7 @@ def assign_all_dsfs(import_session_id):
     assignee = db.session.get(User, user_id) if user_id else None
     if assignee is None or assignee.role != "controller" or not assignee.is_active:
         flash("Sélectionnez un contrôleur valide.", "danger")
-        return redirect(url_for("admin.dashboard", tab="assignments", session_id=import_session.id))
+        return redirect(url_for("admin.dashboard", session_id=import_session.id))
 
     dsfs = DSF.query.filter_by(import_session_id=import_session.id).order_by(DSF.id).all()
     unassigned = [dsf for dsf in dsfs if dsf.assigned_to_id is None]
@@ -330,7 +165,7 @@ def assign_all_dsfs(import_session_id):
         flash(message, "success")
     else:
         flash("Toutes les DSF de ce classeur étaient déjà affectées. Aucune modification effectuée.", "warning")
-    return redirect(url_for("admin.dashboard", tab="assignments", session_id=import_session.id))
+    return redirect(url_for("admin.dashboard", session_id=import_session.id))
 
 
 @admin_bp.post("/controllers/<int:controller_id>/unassign-not-started")
@@ -369,7 +204,7 @@ def unassign_not_started(controller_id):
         )
     else:
         flash(f"Aucune DSF non commencée à retirer à {controller.username}.", "info")
-    return redirect(url_for("admin.dashboard", tab="controllers"))
+    return redirect(url_for("admin.dashboard"))
 
 
 @admin_bp.get("/search")
@@ -425,7 +260,7 @@ def update_full_name(user_id):
         flash(f"Nom complet enregistré pour {user.username}.", "success")
     except ValueError as exc:
         flash(str(exc), "danger")
-    return redirect(url_for("admin.dashboard", tab="controllers", _anchor="accountNames"))
+    return redirect(url_for("admin.dashboard", _anchor="accountNames"))
 
 
 @admin_bp.post("/import-sessions/<int:import_session_id>/assign-branch")
@@ -456,4 +291,4 @@ def assign_branch(import_session_id):
         db.session.rollback()
         raise
     flash(f"{len(ids)} DSF libre(s) affectée(s) à {assignee.display_label} : {selected['label']}.", "success")
-    return redirect(url_for("admin.dashboard", tab="assignments", session_id=import_session_id, branch=branch))
+    return redirect(url_for("admin.dashboard", session_id=import_session_id, branch=branch))

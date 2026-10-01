@@ -21,17 +21,6 @@ import_lock = Lock()
 POSTGRES_IMPORT_LOCK_ID = 918240651
 
 
-def _success_message(import_session):
-    message = (
-        f"Import terminé : {import_session.row_count} DSF et "
-        f"{import_session.column_count} colonnes."
-    )
-    profile = getattr(import_session, "schema_profile", None)
-    if profile and profile["recognized"]:
-        message += f" {profile['label']} reconnu."
-    return message
-
-
 def _is_xlsx(filename):
     return bool(filename) and Path(filename).suffix.casefold() == ".xlsx"
 
@@ -104,7 +93,10 @@ def import_page():
         try:
             saved_path = save_uploaded_file(upload)
             import_session = _import_safely(saved_path, upload.filename, request.form.get("sheet_name") or None)
-            flash(_success_message(import_session), "success")
+            flash(
+                f"Import terminé : {import_session.row_count} DSF et {import_session.column_count} colonnes.",
+                "success",
+            )
             return redirect(url_for("admin.dashboard", session_id=import_session.id))
         except (ExcelImportError, ValueError) as exc:
             db.session.rollback()
@@ -137,7 +129,10 @@ def import_local():
     try:
         copied = copy_local_workbook(local_workbook)
         import_session = _import_safely(copied, local_workbook.name, request.form.get("sheet_name") or None)
-        flash(_success_message(import_session), "success")
+        flash(
+            f"Import terminé : {import_session.row_count} DSF et {import_session.column_count} colonnes.",
+            "success",
+        )
         return redirect(url_for("admin.dashboard", session_id=import_session.id))
     except Exception as exc:
         _cleanup_failed_copy(copied)
