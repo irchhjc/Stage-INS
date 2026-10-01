@@ -68,40 +68,59 @@ def split_variable_name(variable_name):
     return poste or text, MEASURE_LABELS.get(measure, measure or "Valeur")
 
 
-def build_accounting_sections(values, max_rows=30):
-    groups = []
-    current = None
-    for value in values:
-        poste, measure = split_variable_name(value.variable_name)
-        if current is None or current["poste"] != poste:
-            current = {"poste": poste, "raw_cells": []}
-            groups.append(current)
-        current["raw_cells"].append((measure, value))
+def _source_column_index(value, fallback):
+    column = getattr(value, "column", None)
+    return getattr(column, "column_index", fallback)
 
-    sections = []
-    for section_number, start in enumerate(range(0, len(groups), max_rows), start=1):
-        chunk = groups[start : start + max_rows]
-        slot_order = []
-        slot_labels = {}
-        prepared_rows = []
-        for group in chunk:
-            counts = Counter()
-            cells = {}
-            for measure, value in group["raw_cells"]:
-                counts[measure] += 1
-                slot = f"{measure}#{counts[measure]}"
-                if slot not in slot_order:
-                    slot_order.append(slot)
-                    slot_labels[slot] = measure if counts[measure] == 1 else f"{measure} ({counts[measure]})"
-                cells[slot] = value
-            prepared_rows.append({"poste": group["poste"], "cells": cells})
-        sections.append(
+
+def build_accounting_sections(values, max_rows=None):
+    """Construit un tableau unique en conservant l'ordre exact des variables.
+
+    Chaque variable source devient une ligne. Ce format long permet de réunir
+    dans une même fiche des familles comptables différentes sans créer de
+    cellules artificiellement vides et sans confondre les en-têtes dupliqués.
+    ``max_rows`` reste accepté pour compatibilité, mais ne découpe plus la fiche.
+    """
+    rows = []
+    for fallback, value in enumerate(values, start=1):
+        poste, measure = split_variable_name(value.variable_name)
+        rows.append(
             {
-                "number": section_number,
-                "title": "Tableau comptable" if len(groups) <= max_rows else f"Section {section_number}",
-                "slots": [{"key": slot, "label": slot_labels[slot]} for slot in slot_order],
-                "rows": prepared_rows,
+                "source_order": _source_column_index(value, fallback),
+                "poste": poste,
+                "measure": measure,
+                "source_variable": value.variable_name,
+                "value": value,
+                "is_question": poste.rstrip().endswith("?"),
             }
         )
-    return sections
+
+    cursor = 0
+    while cursor < len(rows):
+        end = cursor + 1
+        poste_key = normalize_label(rows[cursor]["poste"])
+        while end < len(rows) and normalize_label(rows[end]["poste"]) == poste_key:
+            end += 1
+
+        group = rows[cursor:end]
+        measure_totals = Counter(row["measure"] for row in group)
+        measure_occurrences = Counter()
+        for offset, row in enumerate(group):
+            measure_occurrences[row["measure"]] += 1
+            row["group_start"] = offset == 0
+            row["group_size"] = len(group)
+            if measure_totals[row["measure"]] > 1:
+                row["measure"] = (
+                    f"{row['measure']} ({measure_occurrences[row['measure']]})"
+                )
+        cursor = end
+
+    return [
+        {
+            "number": 1,
+            "title": "Tableau complet de la fiche",
+            "rows": rows,
+            "variable_count": len(rows),
+        }
+    ] if rows else []
 

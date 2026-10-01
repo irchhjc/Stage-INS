@@ -86,7 +86,7 @@ jobs:
     needs: [tests, e2e, image]
     environment:
       name: production
-      url: https://srv2013685.hstgr.cloud
+      url: https://dsf-compta-inscg.tech
     concurrency:
       group: dsf-production
       cancel-in-progress: false
@@ -148,4 +148,4 @@ jobs:
             'cd /opt/dsf-control && chmod 755 deploy/*.sh && ./deploy/ci_deploy.sh'
 
       - name: Verifier le service public
-        run: curl --fail --show-error --silent --retry 10 --retry-delay 3 https://srv2013685.hstgr.cloud/healthz
+        run: curl --fail --show-error --silent --retry 10 --retry-delay 3 https://dsf-compta-inscg.tech/healthz
