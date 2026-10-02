@@ -28,6 +28,18 @@
   </div>
 </section>
 
+<nav class="admin-tabs mt-4" aria-label="Sections de l'administration">
+  <ul class="nav nav-tabs" id="adminTabs" role="tablist" data-tab-persist="admin-tab">
+    <li class="nav-item" role="presentation"><button class="nav-link active" id="tab-overview" data-bs-toggle="tab" data-bs-target="#pane-overview" type="button" role="tab" aria-controls="pane-overview" aria-selected="true">Vue d'ensemble</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" id="tab-assignments" data-bs-toggle="tab" data-bs-target="#pane-assignments" type="button" role="tab" aria-controls="pane-assignments" aria-selected="false">Affectations <span class="badge text-bg-light border ms-1">{{ performance.summary.unassigned }} libres</span></button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" id="tab-controllers" data-bs-toggle="tab" data-bs-target="#pane-controllers" type="button" role="tab" aria-controls="pane-controllers" aria-selected="false">Contrôleurs <span class="badge text-bg-light border ms-1">{{ controllers|length }}</span></button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" id="tab-accounts" data-bs-toggle="tab" data-bs-target="#pane-accounts" type="button" role="tab" aria-controls="pane-accounts" aria-selected="false">Comptes <span class="badge text-bg-light border ms-1">{{ account_users|length }}</span></button></li>
+  </ul>
+</nav>
+
+<div class="tab-content admin-tab-content">
+  <div class="tab-pane fade show active" id="pane-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="0">
+
 <section class="card panel-card performance-panel mt-4" aria-labelledby="performanceTitle">
   <div class="card-body p-4">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
@@ -124,62 +136,9 @@
     {% endif %}
   </div>
 </section>
-
-<section id="accountNames" class="card panel-card mt-4" aria-labelledby="accountNamesTitle">
-  <div class="card-body p-4">
-    <h2 id="accountNamesTitle" class="h5">Noms complets des utilisateurs</h2>
-    <p class="small text-secondary">Associez un nom complet à chaque compte existant. Les identifiants, mots de passe et affectations sont conservés.</p>
-    <div class="table-responsive"><table class="table align-middle">
-      <thead><tr><th>Nom d'utilisateur</th><th>Rôle</th><th>Compte</th><th>Nom complet</th></tr></thead>
-      <tbody>{% for account in account_users %}<tr>
-        <td>{{ account.username }}</td><td>{{ 'Administrateur' if account.is_admin else 'Contrôleur' }}</td>
-        <td>{{ 'Actif' if account.is_active else 'Désactivé' }}</td>
-        <td><form class="d-flex gap-2" method="post" action="{{ url_for('admin.update_full_name', user_id=account.id) }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <label class="visually-hidden" for="fullName{{ account.id }}">Nom complet de {{ account.username }}</label>
-          <input id="fullName{{ account.id }}" name="full_name" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom">
-          <button class="btn btn-outline-primary" type="submit">Enregistrer</button>
-        </form></td>
-      </tr>{% endfor %}</tbody>
-    </table></div>
   </div>
-</section>
 
-<div class="row g-4 mt-1">
-  <div class="col-xl-4">
-    <div class="card panel-card h-100"><div class="card-body p-4">
-      <h2 class="h5">Créer un contrôleur</h2>
-      <p class="small text-secondary">Le nom doit être en minuscules et le mot de passe comporter au moins 10 caractères.</p>
-      <form method="post" action="{{ url_for('admin.create_controller') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <div class="mb-3"><label class="form-label" for="newFullName">Nom complet (facultatif)</label><input id="newFullName" name="full_name" class="form-control" maxlength="150" autocomplete="name" placeholder="Prénom et nom"></div>
-        <div class="mb-3"><label class="form-label" for="newUsername">Nom d'utilisateur</label><input id="newUsername" name="username" class="form-control" pattern="[a-z0-9._-]{3,50}" minlength="3" maxlength="50" required autocapitalize="none" spellcheck="false"></div>
-        <div class="mb-3"><label class="form-label" for="newPassword">Mot de passe</label><input id="newPassword" name="password" type="password" class="form-control" minlength="10" required autocomplete="new-password"></div>
-        <button class="btn btn-success w-100">Créer le compte</button>
-      </form>
-    </div></div>
-  </div>
-  <div class="col-xl-8">
-    <div class="card panel-card h-100"><div class="card-body p-4">
-      <h2 class="h5">Progression des contrôleurs</h2>
-      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th><th>Retrait des affectations</th></tr></thead><tbody>
-        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.display_label }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td>
-        <td>
-          <form method="post" action="{{ url_for('admin.unassign_not_started', controller_id=row.user.id) }}"
-                onsubmit="return window.confirm('Retirer toutes les DSF non commencées de ce contrôleur, dans tous les classeurs ? Les données seront conservées.');">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-            <button class="btn btn-sm btn-outline-danger" type="submit" {{ 'disabled' if row.not_started == 0 else '' }}>
-              Retirer les non commencées ({{ row.not_started }})
-            </button>
-            <small class="d-block text-secondary mt-1">Tous les classeurs · données conservées</small>
-          </form>
-        </td></tr>
-        {% else %}<tr><td colspan="8" class="text-center py-4 text-secondary">Aucun contrôleur créé.</td></tr>{% endfor %}
-      </tbody></table></div>
-    </div></div>
-  </div>
-</div>
-
+  <div class="tab-pane fade" id="pane-assignments" role="tabpanel" aria-labelledby="tab-assignments" tabindex="0">
 <div class="card panel-card mt-4">
   <div class="card-header bg-white border-0 p-4 pb-2">
     <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap"><div><h2 class="h5 mb-1">Affecter les DSF</h2><p class="small text-secondary mb-0">Les DSF libres sont visibles par tous les contrôleurs. Seul le contrôleur qui la prend en charge peut la modifier.</p></div>
@@ -223,5 +182,66 @@
     </td><td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Voir</a></td></tr>
     {% else %}<tr><td colspan="8" class="text-center py-5 text-secondary">Aucune DSF importée.</td></tr>{% endfor %}
   </tbody></table></div>
+</div>
+  </div>
+
+  <div class="tab-pane fade" id="pane-controllers" role="tabpanel" aria-labelledby="tab-controllers" tabindex="0">
+<div class="row g-4 mt-1">
+  <div class="col-xl-4">
+    <div class="card panel-card h-100"><div class="card-body p-4">
+      <h2 class="h5">Créer un contrôleur</h2>
+      <p class="small text-secondary">Le nom doit être en minuscules et le mot de passe comporter au moins 10 caractères.</p>
+      <form method="post" action="{{ url_for('admin.create_controller') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div class="mb-3"><label class="form-label" for="newFullName">Nom complet (facultatif)</label><input id="newFullName" name="full_name" class="form-control" maxlength="150" autocomplete="name" placeholder="Prénom et nom"></div>
+        <div class="mb-3"><label class="form-label" for="newUsername">Nom d'utilisateur</label><input id="newUsername" name="username" class="form-control" pattern="[a-z0-9._-]{3,50}" minlength="3" maxlength="50" required autocapitalize="none" spellcheck="false"></div>
+        <div class="mb-3"><label class="form-label" for="newPassword">Mot de passe</label><input id="newPassword" name="password" type="password" class="form-control" minlength="10" required autocomplete="new-password"></div>
+        <button class="btn btn-success w-100">Créer le compte</button>
+      </form>
+    </div></div>
+  </div>
+  <div class="col-xl-8">
+    <div class="card panel-card h-100"><div class="card-body p-4">
+      <h2 class="h5">Progression des contrôleurs</h2>
+      <div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Contrôleur</th><th>Assignées</th><th>En cours</th><th>Terminées</th><th>Taux terminé</th><th>Anomalies</th><th>Progression moyenne</th><th>Retrait des affectations</th></tr></thead><tbody>
+        {% for row in controller_progress %}<tr><td class="fw-semibold">{{ row.user.display_label }}</td><td>{{ row.total }}</td><td>{{ row.in_progress }}</td><td>{{ row.completed }}</td><td><strong>{{ row.completion_rate }}%</strong></td><td>{% if row.anomalies %}<span class="badge text-bg-danger">{{ row.anomalies }}</span>{% else %}0{% endif %}</td><td><div class="d-flex align-items-center gap-2"><div class="progress admin-progress"><div class="progress-bar bg-success" style="width:{{ row.progress }}%"></div></div><span>{{ row.progress }}%</span></div></td>
+        <td>
+          <form method="post" action="{{ url_for('admin.unassign_not_started', controller_id=row.user.id) }}"
+                onsubmit="return window.confirm('Retirer toutes les DSF non commencées de ce contrôleur, dans tous les classeurs ? Les données seront conservées.');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="btn btn-sm btn-outline-danger" type="submit" {{ 'disabled' if row.not_started == 0 else '' }}>
+              Retirer les non commencées ({{ row.not_started }})
+            </button>
+            <small class="d-block text-secondary mt-1">Tous les classeurs · données conservées</small>
+          </form>
+        </td></tr>
+        {% else %}<tr><td colspan="8" class="text-center py-4 text-secondary">Aucun contrôleur créé.</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div></div>
+  </div>
+</div>
+  </div>
+
+  <div class="tab-pane fade" id="pane-accounts" role="tabpanel" aria-labelledby="tab-accounts" tabindex="0">
+<section id="accountNames" class="card panel-card mt-4" aria-labelledby="accountNamesTitle">
+  <div class="card-body p-4">
+    <h2 id="accountNamesTitle" class="h5">Noms complets des utilisateurs</h2>
+    <p class="small text-secondary">Associez un nom complet à chaque compte existant. Les identifiants, mots de passe et affectations sont conservés.</p>
+    <div class="table-responsive"><table class="table align-middle">
+      <thead><tr><th>Nom d'utilisateur</th><th>Rôle</th><th>Compte</th><th>Nom complet</th></tr></thead>
+      <tbody>{% for account in account_users %}<tr>
+        <td>{{ account.username }}</td><td>{{ 'Administrateur' if account.is_admin else 'Contrôleur' }}</td>
+        <td>{{ 'Actif' if account.is_active else 'Désactivé' }}</td>
+        <td><form class="d-flex gap-2" method="post" action="{{ url_for('admin.update_full_name', user_id=account.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <label class="visually-hidden" for="fullName{{ account.id }}">Nom complet de {{ account.username }}</label>
+          <input id="fullName{{ account.id }}" name="full_name" class="form-control" maxlength="150" value="{{ account.full_name or '' }}" placeholder="Prénom et nom">
+          <button class="btn btn-outline-primary" type="submit">Enregistrer</button>
+        </form></td>
+      </tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+</section>
+  </div>
 </div>
 {% endblock %}

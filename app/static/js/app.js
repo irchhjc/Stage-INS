@@ -468,6 +468,19 @@
     window.location.href = url.toString();
   });
 
+  document.querySelectorAll("[data-tab-persist]").forEach(list => {
+    const key = list.dataset.tabPersist;
+    let stored = null;
+    try { stored = window.location.hash.startsWith("#pane-") ? window.location.hash : sessionStorage.getItem(key); } catch (_) {}
+    const trigger = stored && list.querySelector(`[data-bs-target="${stored}"]`);
+    if (trigger && window.bootstrap) window.bootstrap.Tab.getOrCreateInstance(trigger).show();
+    list.addEventListener("shown.bs.tab", event => {
+      const target = event.target.dataset.bsTarget;
+      try { sessionStorage.setItem(key, target); } catch (_) {}
+      history.replaceState(null, "", target);
+    });
+  });
+
   document.getElementById("adminSessionSelector")?.addEventListener("change", event => {
     const url = new URL(window.location.href);
     url.searchParams.set("session_id", event.target.value);

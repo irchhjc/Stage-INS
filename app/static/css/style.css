@@ -214,6 +214,11 @@ body {
 .accounting-table th, .accounting-table td { border-right: 1px solid #e7ebef; }
 .accounting-table .poste-column { min-width: 250px; left: 0; z-index: 9; }
 .poste-cell { position: sticky; left: 0; z-index: 5; min-width: 250px; max-width: 360px; background: #fff !important; font-weight: 620; color: #263b4d; }
+.admin-tabs .nav-tabs { gap: .25rem; border-bottom: 2px solid #dbe3ec; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+.admin-tabs .nav-link { margin-bottom: -2px; padding: .7rem 1.1rem; color: #435466; font-weight: 650; white-space: nowrap; border: 0; border-bottom: 3px solid transparent; border-radius: 8px 8px 0 0; background: transparent; }
+.admin-tabs .nav-link:hover { color: var(--navy); background: #eef3fb; }
+.admin-tabs .nav-link.active { color: var(--navy); background: #fff; border-bottom-color: var(--blue); }
+.admin-tab-content > .tab-pane > :first-child { margin-top: 1.5rem !important; }
 .fiche-table-heading { padding: .75rem 1rem; border-bottom: 1px solid #e4e9ef; background: #1f3864; color: #fff; border-radius: 14px 14px 0 0; }
 .fiche-grid-wrap { width: 100%; border-radius: 14px; }
 .fiche-table-heading + .fiche-grid-wrap { border-radius: 0 0 14px 14px; }
