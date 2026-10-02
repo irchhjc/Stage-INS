@@ -177,7 +177,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 3A est-elle renseignée ?'},
             ],
         },
         {
@@ -211,7 +211,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?', 'optional': True},
+                {'label': 'La note 3C est-elle renseignée ?', 'optional': True},
             ],
         },
         {
@@ -241,7 +241,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 3D est-elle renseignée ?'},
             ],
         },
         {
@@ -282,7 +282,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 4 est-elle renseignée ?'},
             ],
         },
         {
@@ -310,7 +310,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 5 (actif circulant HAO) est-elle renseignée ?'},
             ],
         },
         {
@@ -331,7 +331,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 5 (dettes circulantes HAO) est-elle renseignée ?'},
             ],
         },
         {
@@ -352,7 +352,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 6 est-elle renseignée ?'},
             ],
         },
         {
@@ -379,7 +379,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 7 est-elle renseignée ?'},
             ],
         },
         {
@@ -409,7 +409,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 8 est-elle renseignée ?'},
             ],
         },
         {
@@ -438,7 +438,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 9 est-elle renseignée ?'},
             ],
         },
         {
@@ -463,7 +463,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 10 est-elle renseignée ?'},
             ],
         },
         {
@@ -488,7 +488,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 11 est-elle renseignée ?'},
             ],
         },
         {
@@ -519,7 +519,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 14 est-elle renseignée ?'},
             ],
         },
         {
@@ -549,7 +549,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 15A est-elle renseignée ?'},
             ],
         },
         {
@@ -581,7 +581,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 15B est-elle renseignée ?'},
             ],
         },
         {
@@ -603,7 +603,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 16A est-elle renseignée ?'},
             ],
         },
         {
@@ -659,7 +659,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 16B est-elle renseignée ?'},
             ],
         },
         {
@@ -702,7 +702,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 17 est-elle renseignée ?'},
             ],
         },
         {
@@ -728,7 +728,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 18 est-elle renseignée ?'},
             ],
         },
         {
@@ -758,7 +758,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 19 est-elle renseignée ?'},
             ],
         },
         {
@@ -794,7 +794,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 20 est-elle renseignée ?'},
             ],
         },
         {
@@ -821,7 +821,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 21 est-elle renseignée ?'},
             ],
         },
         {
@@ -863,7 +863,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 22 est-elle renseignée ?'},
             ],
         },
         {
@@ -907,7 +907,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 23 est-elle renseignée ?'},
             ],
         },
         {
@@ -929,7 +929,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 24 est-elle renseignée ?'},
             ],
         },
         {
@@ -960,7 +960,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 25 est-elle renseignée ?'},
             ],
         },
         {
@@ -982,7 +982,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 26 est-elle renseignée ?'},
             ],
         },
         {
@@ -1009,7 +1009,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 27A est-elle renseignée ?'},
             ],
         },
         {
@@ -1032,7 +1032,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 27B est-elle renseignée ?'},
             ],
         },
         {
@@ -1070,7 +1070,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 29 est-elle renseignée ?'},
             ],
         },
         {
@@ -1107,7 +1107,7 @@ FICHE_LAYOUTS = {
             "columns": ['Valeur'],
             "question": True,
             "rows": [
-                {'label': 'Note renseignée ?'},
+                {'label': 'La note 34 est-elle renseignée ?'},
             ],
         },
         {

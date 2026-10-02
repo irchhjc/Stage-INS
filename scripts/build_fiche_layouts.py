@@ -9,6 +9,7 @@ structure est extraite (libellés et nombre de colonnes) ; les lettres de
 colonnes du classeur ne sont pas utilisées, car les valeurs sont rattachées
 par position au sein de chaque fiche détectée à l'import.
 """
+import re
 import sys
 from pathlib import Path
 
@@ -74,6 +75,13 @@ def _is_optional(code, block_title, label):
     )
 
 
+def _question_label(block_title):
+    """« NOTE 3C » -> « La note 3C est-elle renseignée ? »."""
+    text = block_title.lower().replace("hao", "HAO")
+    text = re.sub(r"\b(\d+[a-z])\b", lambda m: m.group(1).upper(), text)
+    return f"La {text} est-elle renseignée ?"
+
+
 def _fill(cell):
     return cell.fill.fgColor.rgb if cell.fill.fill_type else None
 
@@ -126,7 +134,7 @@ def extract(path):
         question = label.startswith(QUESTION_PREFIX)
         if question:
             new_table(["Valeur"], question=True)
-        row = {"label": label}
+        row = {"label": _question_label(block_title) if question else label}
         if _is_optional(code, block_title, label):
             row["optional"] = True
         table["rows"].append(row)
