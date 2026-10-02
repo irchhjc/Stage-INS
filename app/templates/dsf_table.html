@@ -11,7 +11,7 @@
       </select>
     </div>
     <div class="row g-2 mt-3">
-      <div class="col-lg-6"><input id="instantDsfSearch" class="form-control" placeholder="Rechercher NIU, numéro DSF, raison sociale ou sigle…" value="{{ term }}"></div>
+      <div class="col-lg-6"><input id="instantDsfSearch" class="form-control" placeholder="Rechercher NIU, numéro DSF, raison sociale, sigle{{ ' ou contrôleur' if current_user.is_admin else '' }}…" value="{{ term }}"></div>
       <div class="col-lg-6 d-flex gap-2 flex-wrap filter-pills">
         {% set status_filters = [('', 'Toutes'), ('in_progress', 'En cours'), ('completed', 'Terminées'), ('anomalies', 'Avec anomalies')] if list_mode == 'mine' else [('', 'Toutes'), ('not_started', 'Non commencées'), ('in_progress', 'En cours'), ('completed', 'Terminées'), ('anomalies', 'Avec anomalies')] %}
         {% for key, label in status_filters %}
@@ -22,10 +22,10 @@
   </div>
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0 dsf-table">
-      <thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Sigle</th><th>Année</th><th>Progression</th><th>Statut</th><th>Anomalies</th><th></th></tr></thead>
+      <thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Sigle</th><th>Année</th><th>Progression</th><th>Statut</th>{% if current_user.is_admin %}<th>Contrôleur</th>{% endif %}<th>Anomalies</th><th></th></tr></thead>
       <tbody id="dsfRows">
       {% for dsf in dsfs %}
-        <tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.sigle or '')|lower }}">
+        <tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.sigle or '')|lower }}{% if current_user.is_admin and dsf.assignee %} {{ dsf.assignee.display_label|lower }}{% endif %}">
           <td class="fw-semibold">{{ dsf.niu or '—' }}</td>
           <td>{{ dsf.numero_dsf or '—' }}</td>
           <td><span class="company-name">{{ dsf.raison_sociale or 'Sans raison sociale' }}</span></td>
@@ -33,6 +33,11 @@
           <td>{{ dsf.annee or '—' }}</td>
           <td class="progress-cell"><div class="d-flex align-items-center gap-2"><div class="progress"><div class="progress-bar bg-success" style="width:{{ dsf.progress_percent }}%"></div></div><span>{{ dsf.progress_percent }}%</span></div></td>
           <td>{{ status_badge(dsf.status) }}</td>
+          {% if current_user.is_admin %}<td class="controller-cell">
+            {% if dsf.assignee and dsf.status in ['in_progress', 'completed'] %}<strong>{{ dsf.assignee.display_label }}</strong>
+            {% elif dsf.assignee %}<span class="text-secondary">{{ dsf.assignee.display_label }}</span>
+            {% else %}<span class="text-secondary">Libre</span>{% endif %}
+          </td>{% endif %}
           <td>{% if dsf.anomaly_count %}<span class="badge text-bg-danger">{{ dsf.anomaly_count }}</span>{% else %}<span class="text-secondary">0</span>{% endif %}</td>
           <td>
             {% if current_user.is_admin or dsf.assigned_to_id == current_user.id %}
@@ -47,7 +52,7 @@
             {% endif %}
           </td>
         </tr>
-      {% else %}<tr id="emptyDsfRow"><td colspan="9" class="text-center py-5 text-secondary">Aucune DSF ne correspond aux critères.</td></tr>{% endfor %}
+      {% else %}<tr id="emptyDsfRow"><td colspan="{{ 10 if current_user.is_admin else 9 }}" class="text-center py-5 text-secondary">Aucune DSF ne correspond aux critères.</td></tr>{% endfor %}
       </tbody>
     </table>
   </div>
