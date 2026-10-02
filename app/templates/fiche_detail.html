@@ -66,50 +66,50 @@
       <div class="legend-line mb-3"><span><i class="legend-dot dot-black"></i> Non vérifiée</span><span><i class="legend-dot dot-green"></i> Vérifiée</span><span><i class="legend-dot dot-corrected"></i> Corrigée</span><span><i class="legend-dot dot-red"></i> Anomalie</span><span><i class="legend-dot dot-gray"></i> Non applicable</span></div>
 
       {% for section in sections %}
-      <div class="panel-card mb-3" id="section-{{ section.number }}">
-        <div class="fiche-table-heading">
-          <div>
-            <h3 class="h6 mb-1">{{ section.title }}</h3>
-            <p class="small text-secondary mb-0">{{ section.variable_count }} variables, dans l'ordre du fichier source.</p>
+      <div id="section-{{ section.number }}">
+        {% if section.layout == 'source' %}
+        <div class="alert alert-secondary small" role="note">Cette fiche ne correspond à aucune version connue du modèle de tableaux ({{ section.variable_count }} variables) : les variables sont affichées une par une, dans l'ordre du fichier source.</div>
+        {% endif %}
+        {% for table in section.tables %}
+        <div class="panel-card fiche-table-card mb-3">
+          {% if table.title %}<div class="fiche-table-heading"><h3 class="h6 mb-0">{{ table.title }}</h3></div>{% endif %}
+          <div class="table-responsive fiche-grid-wrap">
+            <table class="table accounting-table fiche-grid align-middle mb-0{{ ' fiche-grid-question' if table.is_question }}{{ ' fiche-grid-dense' if table.columns|length >= 4 }}">
+              {% if not table.is_question %}
+              <thead>
+                <tr>
+                  <th class="poste-column" scope="col">Poste</th>
+                  {% for column in table.columns %}<th class="measure-column" scope="col">{{ column }}</th>{% endfor %}
+                  <th class="row-action-column" scope="col"><span class="visually-hidden">Contrôle de la ligne</span></th>
+                </tr>
+              </thead>
+              {% endif %}
+              <tbody>
+              {% for row in table.rows %}
+                <tr class="{{ 'is-total-row' if row.is_total }}{{ ' question-variable-row' if row.is_question }}" data-source-order="{{ row.source_order }}">
+                  <th scope="row" class="poste-cell">{{ row.poste }}</th>
+                  {% for cell in row.cells %}
+                  {% set value = cell.value %}
+                  <td id="value-{{ value.id }}" class="value-cell status-{{ value.status }} {{ 'is-corrected' if value.corrected else '' }}" title="{{ cell.source_variable }} · colonne {{ value.column.excel_column_letter }}">
+                    <div class="cell-editor">
+                      <input class="value-input" type="text" value="{{ display_value(value.current_value) }}" data-raw="{{ raw_input_value(value.current_value) }}" data-value-id="{{ value.id }}" data-column-index="{{ cell.source_order }}" data-status="{{ value.status }}" autocomplete="off" aria-label="{{ row.poste }} — {{ table.columns[loop.index0] }}">
+                      <div class="cell-actions" role="group" aria-label="Statut de {{ row.poste }}">
+                        <button class="cell-action cell-action-verified" type="button" title="Vérifier" aria-label="Vérifier cette valeur" aria-pressed="{{ 'true' if value.status == 'verified' else 'false' }}" data-set-status="verified"><span aria-hidden="true">✓</span></button>
+                        <button class="cell-action cell-action-anomaly" type="button" title="Signaler une anomalie" aria-label="Signaler une anomalie" aria-pressed="{{ 'true' if value.status == 'anomaly' else 'false' }}" data-set-status="anomaly"><span aria-hidden="true">!</span></button>
+                        <button class="cell-action cell-action-na" type="button" title="Non applicable" aria-label="Marquer comme non applicable" aria-pressed="{{ 'true' if value.status == 'not_applicable' else 'false' }}" data-set-status="not_applicable"><span aria-hidden="true">Ø</span></button>
+                      </div>
+                    </div>
+                    <span class="save-indicator" aria-live="polite"></span>
+                  </td>
+                  {% endfor %}
+                  <td class="row-actions"><button type="button" class="btn btn-sm btn-outline-success verify-row" title="Marquer cette ligne comme vérifiée">✓</button></td>
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
           </div>
         </div>
-        <div class="table-responsive accounting-table-wrap">
-          <table class="table accounting-table variable-order-table align-middle mb-0">
-            <thead>
-              <tr>
-                <th class="order-column">Ordre</th>
-                <th class="poste-column">Poste</th>
-                <th class="measure-column">Colonne comptable</th>
-                <th class="value-column">Valeur</th>
-                <th class="row-action-column">Contrôle</th>
-              </tr>
-            </thead>
-            <tbody>
-            {% for row in section.rows %}
-              {% set value = row.value %}
-              <tr class="{{ 'question-variable-row' if row.is_question else '' }}" data-source-order="{{ row.source_order }}">
-                <td class="order-cell" title="Colonne {{ value.column.excel_column_letter }} du fichier source">{{ row.source_order }}</td>
-                {% if row.group_start %}
-                <th scope="rowgroup" class="poste-cell" rowspan="{{ row.group_size }}">{{ row.poste }}</th>
-                {% endif %}
-                <td class="measure-cell" title="{{ row.source_variable }}">{{ row.measure }}</td>
-                <td id="value-{{ value.id }}" class="value-cell status-{{ value.status }} {{ 'is-corrected' if value.corrected else '' }}" title="{{ value.variable_name }} · colonne {{ value.column.excel_column_letter }}">
-                  <div class="cell-editor">
-                    <input class="value-input" type="text" value="{{ display_value(value.current_value) }}" data-raw="{{ raw_input_value(value.current_value) }}" data-value-id="{{ value.id }}" data-column-index="{{ row.source_order }}" data-status="{{ value.status }}" autocomplete="off" aria-label="{{ value.variable_name }}">
-                    <div class="cell-actions" role="group" aria-label="Statut de {{ value.variable_name }}">
-                      <button class="cell-action cell-action-verified" type="button" title="Vérifier" aria-label="Vérifier cette valeur" aria-pressed="{{ 'true' if value.status == 'verified' else 'false' }}" data-set-status="verified"><span aria-hidden="true">✓</span></button>
-                      <button class="cell-action cell-action-anomaly" type="button" title="Signaler une anomalie" aria-label="Signaler une anomalie" aria-pressed="{{ 'true' if value.status == 'anomaly' else 'false' }}" data-set-status="anomaly"><span aria-hidden="true">!</span></button>
-                      <button class="cell-action cell-action-na" type="button" title="Non applicable" aria-label="Marquer comme non applicable" aria-pressed="{{ 'true' if value.status == 'not_applicable' else 'false' }}" data-set-status="not_applicable"><span aria-hidden="true">Ø</span></button>
-                    </div>
-                  </div>
-                  <span class="save-indicator" aria-live="polite"></span>
-                </td>
-                <td class="row-actions"><button type="button" class="btn btn-sm btn-outline-success verify-row" title="Marquer cette variable comme vérifiée">✓ ligne</button></td>
-              </tr>
-            {% endfor %}
-            </tbody>
-          </table>
-        </div>
+        {% endfor %}
       </div>
       {% else %}<div class="alert alert-info">Aucune variable n'est associée à cette fiche dans le mapping.</div>{% endfor %}
 

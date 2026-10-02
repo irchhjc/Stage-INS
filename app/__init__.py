@@ -129,6 +129,14 @@ def create_app(config_object=Config):
         if not secrets.compare_digest(supplied or "", session["csrf_token"]):
             return {"ok": False, "error": "Jeton de sécurité invalide. Rechargez la page."}, 400
 
+    def versioned_static(filename):
+        """URL statique avec la date du fichier : un déploiement invalide le cache navigateur."""
+        try:
+            version = int((Path(app.static_folder) / filename).stat().st_mtime)
+        except OSError:
+            version = None
+        return url_for("static", filename=filename, v=version)
+
     @app.context_processor
     def inject_globals():
         logo_folder = Path(app.root_path) / "logos"
@@ -156,6 +164,7 @@ def create_app(config_object=Config):
             for path in logo_files
         ]
         return {
+            "static_url": versioned_static,
             "csrf_token": session.get("csrf_token", ""),
             "current_user": getattr(g, "current_user", None),
             "primary_logo": next((logo for logo in logos if logo["is_primary"]), None),

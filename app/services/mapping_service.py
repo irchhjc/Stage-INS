@@ -1,7 +1,9 @@
 import re
 import unicodedata
 from collections import Counter
+from itertools import combinations
 
+from app.config.fiche_layouts import FICHE_LAYOUTS
 from app.config.fiche_mapping import FICHE_DEFINITIONS, MEASURE_LABELS
 
 
@@ -58,69 +60,134 @@ def build_column_mapping(headers):
     return mapping
 
 
-def split_variable_name(variable_name):
-    text = str(variable_name or "").strip()
-    match = re.match(r"^(.*)\(([^()]*)\)\s*$", text)
-    if not match:
-        return text, "Valeur"
-    poste = match.group(1).strip()
-    measure = match.group(2).strip()
-    return poste or text, MEASURE_LABELS.get(measure, measure or "Valeur")
-
-
 def _source_column_index(value, fallback):
     column = getattr(value, "column", None)
     return getattr(column, "column_index", fallback)
 
 
-def build_accounting_sections(values, max_rows=None):
-    """Construit un tableau unique en conservant l'ordre exact des variables.
+def _is_total_label(poste):
+    label = normalize_label(poste)
+    return label.startswith(("total", "sous-total", "=")) or bool(
+        re.match(r"^x[a-z] ", label)
+    )
 
-    Chaque variable source devient une ligne. Ce format long permet de réunir
-    dans une même fiche des familles comptables différentes sans créer de
-    cellules artificiellement vides et sans confondre les en-têtes dupliqués.
-    ``max_rows`` reste accepté pour compatibilité, mais ne découpe plus la fiche.
-    """
-    rows = []
-    for fallback, value in enumerate(values, start=1):
-        poste, measure = split_variable_name(value.variable_name)
-        rows.append(
+
+def _column_labels(measures):
+    """Libellés d'affichage ; une mesure répétée est numérotée (1), (2)…"""
+    labels = [MEASURE_LABELS.get(measure, measure or "Valeur") for measure in measures]
+    totals = Counter(labels)
+    seen = Counter()
+    result = []
+    for label in labels:
+        seen[label] += 1
+        result.append(f"{label} ({seen[label]})" if totals[label] > 1 else label)
+    return result
+
+
+def _row_entry(poste, cells, fallback_order):
+    return {
+        "poste": poste,
+        "cells": cells,
+        "source_order": cells[0]["source_order"] if cells else fallback_order,
+        "is_question": poste.rstrip().endswith("?"),
+        "is_total": _is_total_label(poste),
+    }
+
+
+def _cell_entry(value, fallback):
+    return {
+        "source_order": _source_column_index(value, fallback),
+        "source_variable": value.variable_name,
+        "value": value,
+    }
+
+
+def _layout_size(layout, skipped):
+    return sum(
+        len(table["columns"])
+        * sum(1 for row_index, row in enumerate(table["rows"]) if (table_index, row_index) not in skipped)
+        for table_index, table in enumerate(layout)
+    )
+
+
+def _matching_skipped_rows(layout, expected):
+    """Cherche quelles lignes optionnelles retirer pour obtenir ``expected`` cellules."""
+    optional = [
+        (table_index, row_index)
+        for table_index, table in enumerate(layout)
+        for row_index, row in enumerate(table["rows"])
+        if row.get("optional")
+    ]
+    for count in range(len(optional) + 1):
+        for skipped in combinations(optional, count):
+            if _layout_size(layout, set(skipped)) == expected:
+                return set(skipped)
+    return None
+
+
+def _tables_from_layout(layout, values):
+    skipped = _matching_skipped_rows(layout, len(values))
+    if skipped is None:
+        return None
+    position = 0
+    tables = []
+    for table_index, table in enumerate(layout):
+        rows = []
+        for row_index, row in enumerate(table["rows"]):
+            if (table_index, row_index) in skipped:
+                continue
+            cells = []
+            for _ in table["columns"]:
+                position += 1
+                cells.append(_cell_entry(values[position - 1], position))
+            rows.append(_row_entry(row["label"], cells, position))
+        tables.append(
             {
-                "source_order": _source_column_index(value, fallback),
-                "poste": poste,
-                "measure": measure,
-                "source_variable": value.variable_name,
-                "value": value,
-                "is_question": poste.rstrip().endswith("?"),
+                "title": table.get("title"),
+                "columns": _column_labels(table["columns"]),
+                "is_question": bool(table.get("question")),
+                "rows": rows,
             }
         )
+    return tables
 
-    cursor = 0
-    while cursor < len(rows):
-        end = cursor + 1
-        poste_key = normalize_label(rows[cursor]["poste"])
-        while end < len(rows) and normalize_label(rows[end]["poste"]) == poste_key:
-            end += 1
 
-        group = rows[cursor:end]
-        measure_totals = Counter(row["measure"] for row in group)
-        measure_occurrences = Counter()
-        for offset, row in enumerate(group):
-            measure_occurrences[row["measure"]] += 1
-            row["group_start"] = offset == 0
-            row["group_size"] = len(group)
-            if measure_totals[row["measure"]] > 1:
-                row["measure"] = (
-                    f"{row['measure']} ({measure_occurrences[row['measure']]})"
-                )
-        cursor = end
+def _tables_from_source(values):
+    """Repli : une ligne par variable, dans l'ordre exact du fichier source."""
+    rows = [
+        _row_entry(str(value.variable_name or ""), [_cell_entry(value, position)], position)
+        for position, value in enumerate(values, start=1)
+    ]
+    return [{"title": None, "columns": ["Valeur"], "is_question": False, "rows": rows}]
 
+
+def build_accounting_sections(values, fiche_code=None):
+    """Construit les tableaux d'une fiche selon le modèle « fiche en tableau ».
+
+    ``FICHE_LAYOUTS`` décrit, fiche par fiche, les tableaux attendus (postes en
+    lignes, mesures en colonnes). Les variables, triées par colonne source, sont
+    rattachées dans l'ordre : le résultat reste donc exactement dans l'ordre du
+    fichier importé et aucune variable n'est perdue. Si le nombre de variables
+    ne correspond à aucune version connue du modèle (fichier source modifié), la
+    fiche est affichée en liste simple plutôt que mal alignée.
+    """
+    values = list(values)
+    if not values:
+        return []
+    tables = None
+    layout_name = "source"
+    if fiche_code in FICHE_LAYOUTS:
+        tables = _tables_from_layout(FICHE_LAYOUTS[fiche_code], values)
+        layout_name = "model"
+    if tables is None:
+        tables = _tables_from_source(values)
+        layout_name = "source"
     return [
         {
             "number": 1,
-            "title": "Tableau complet de la fiche",
-            "rows": rows,
-            "variable_count": len(rows),
+            "title": "Tableaux de la fiche",
+            "layout": layout_name,
+            "tables": tables,
+            "variable_count": len(values),
         }
-    ] if rows else []
-
+    ]

@@ -45,49 +45,121 @@ def test_supplied_variables_map_to_all_fiches_in_source_order():
     ]
 
 
-def test_each_fiche_uses_one_table_and_keeps_every_source_variable():
+def _source_orders(section):
+    return [
+        cell["source_order"]
+        for table in section["tables"]
+        for row in table["rows"]
+        for cell in row["cells"]
+    ]
+
+
+def test_every_fiche_follows_the_model_and_keeps_every_variable_in_order():
     values_by_fiche = _values_by_fiche()
-    rendered_headers = []
+    rendered_orders = []
 
     for definition in FICHE_DEFINITIONS:
         values = values_by_fiche[definition["code"]]
-        sections = build_accounting_sections(values)
+        sections = build_accounting_sections(values, definition["code"])
 
         assert len(sections) == 1
-        rows = sections[0]["rows"]
+        assert sections[0]["layout"] == "model", definition["code"]
         assert sections[0]["variable_count"] == len(values)
-        assert [row["source_order"] for row in rows] == [
+        assert _source_orders(sections[0]) == [
             value.column.column_index for value in values
         ]
-        assert [row["source_variable"] for row in rows] == [
-            value.variable_name for value in values
-        ]
-        rendered_headers.extend(row["source_variable"] for row in rows)
+        rendered_orders.extend(_source_orders(sections[0]))
 
-    assert rendered_headers == _headers()
+    assert rendered_orders == list(range(1, len(_headers()) + 1))
+
+
+def test_model_matches_both_source_versions_with_and_without_optional_rows():
+    values = _values_by_fiche()
+
+    identification = build_accounting_sections(values["IDENT"], "IDENT")[0]
+    labels = [row["poste"] for row in identification["tables"][0]["rows"]]
+    assert len(labels) == 28
+    assert "Cle" not in labels
+
+    with_key = values["IDENT"][:3] + [
+        SimpleNamespace(variable_name="Cle", column=SimpleNamespace(column_index=0))
+    ] + values["IDENT"][3:]
+    with_key_section = build_accounting_sections(with_key, "IDENT")[0]
+    assert with_key_section["layout"] == "model"
+    assert "Cle" in [row["poste"] for row in with_key_section["tables"][0]["rows"]]
+
+    note_3a = build_accounting_sections(values["NOTE_3A"], "NOTE_3A")[0]
+    assert [table["title"] for table in note_3a["tables"] if table["title"]] == ["Note 3C"]
+
+
+def test_balance_sheet_assets_is_one_postes_by_measures_table():
+    values = _values_by_fiche()
+
+    section = build_accounting_sections(values["BILAN_ACTIF"], "BILAN_ACTIF")[0]
+    assert len(section["tables"]) == 1
+    table = section["tables"][0]
+    assert table["columns"] == ["BRUT", "AMORT./DÉPRÉC.", "NET N", "NET N-1"]
+    assert len(table["rows"]) == 29
+    assert table["rows"][0]["poste"] == "IMMOBILISATIONS INCORPORELLES"
+    assert all(len(row["cells"]) == 4 for row in table["rows"])
+    assert [row["poste"] for row in table["rows"] if row["is_total"]][:2] == [
+        "TOTAL ACTIF IMMOBILISE",
+        "TOTAL ACTIF CIRCULANT",
+    ]
+
+
+def test_notes_split_into_question_row_and_tables_with_their_own_columns():
+    values = _values_by_fiche()
+
+    note_4 = build_accounting_sections(values["NOTE_4"], "NOTE_4")[0]["tables"]
+    assert [table["is_question"] for table in note_4] == [True, False]
+    assert note_4[1]["columns"] == [
+        "N",
+        "N-1",
+        "À un an au plus",
+        "De plus d'un an à deux ans",
+        "À plus de deux ans",
+    ]
+
+    note_16b = build_accounting_sections(values["NOTE_16B"], "NOTE_16B")[0]["tables"]
+    assert [len(table["columns"]) for table in note_16b] == [1, 2, 4, 2]
+
+    note_27b = build_accounting_sections(values["NOTE_27B"], "NOTE_27B")[0]["tables"]
+    assert note_27b[1]["columns"] == ["Hommes", "Femmes", "Total"]
+    assert len(note_27b[1]["rows"]) == 22
 
 
 def test_repeated_measures_are_numbered_without_collapsing_variables():
     values = _values_by_fiche()
 
-    identification = build_accounting_sections(values["IDENT"])[0]["rows"]
-    city_rows = [row for row in identification if row["poste"] == "Ville"]
-    assert [row["measure"] for row in city_rows] == ["Valeur (1)", "Valeur (2)"]
-
-    note_3a = build_accounting_sections(values["NOTE_3A"])[0]["rows"]
-    first_poste = [
-        row for row in note_3a if row["poste"] == "AD IMMOBILISATION INCORPORELLES"
-    ]
-    assert len(first_poste) == 7
-    assert [row["measure"] for row in first_poste][2:6] == [
+    note_3a = build_accounting_sections(values["NOTE_3A"], "NOTE_3A")[0]["tables"]
+    assert note_3a[1]["columns"] == [
+        "Montant brut à l'ouverture",
+        "Acquisitions, apports et créations",
         "Virement entre postes (1)",
         "Réévaluation",
         "Cessions et scissions",
         "Virement entre postes (2)",
+        "Montant brut à la clôture",
+    ]
+    assert all(len(row["cells"]) == 7 for row in note_3a[1]["rows"])
+
+
+def test_unknown_source_structure_falls_back_to_ordered_list():
+    values = _values_by_fiche()["NOTE_6"][:-1]
+
+    section = build_accounting_sections(values, "NOTE_6")[0]
+
+    assert section["layout"] == "source"
+    assert len(section["tables"]) == 1
+    assert section["tables"][0]["columns"] == ["Valeur"]
+    assert _source_orders(section) == [value.column.column_index for value in values]
+    assert [row["poste"] for row in section["tables"][0]["rows"]] == [
+        value.variable_name for value in values
     ]
 
 
-def test_rendered_fiche_has_one_table_in_database_column_order(client, imported_session):
+def test_rendered_fiche_keeps_database_column_order(client, imported_session):
     dsf = DSF.query.order_by(DSF.id).first()
 
     for definition in FICHE_DEFINITIONS:
@@ -103,7 +175,6 @@ def test_rendered_fiche_has_one_table_in_database_column_order(client, imported_
         html = page.get_data(as_text=True)
 
         assert page.status_code == 200
-        assert html.count('class="table accounting-table variable-order-table') == 1
         assert [
             int(index)
             for index in re.findall(r'data-column-index="(\d+)"', html)
@@ -142,10 +213,20 @@ def test_supplied_1776_variables_import_and_render_once_in_order(client):
         page = client.get(f"/dsf/{dsf.id}/fiche/{definition['code']}")
         html = page.get_data(as_text=True)
         assert page.status_code == 200
-        assert html.count('class="table accounting-table variable-order-table') == 1
+        assert "version connue du modèle" not in html
         rendered_order.extend(
             int(index)
             for index in re.findall(r'data-column-index="(\d+)"', html)
         )
 
     assert rendered_order == list(range(1, 1777))
+
+    page = client.get(f"/dsf/{dsf.id}/fiche/BILAN_ACTIF")
+    html = page.get_data(as_text=True)
+    assert re.findall(r'<th class="measure-column" scope="col">([^<]+)</th>', html) == [
+        "BRUT",
+        "AMORT./DÉPRÉC.",
+        "NET N",
+        "NET N-1",
+    ]
+    assert html.count("<tbody>") == 1
