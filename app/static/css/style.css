@@ -220,11 +220,15 @@ body {
 .admin-tabs .nav-link.active { color: var(--navy); background: #fff; border-bottom-color: var(--blue); }
 .admin-tab-content > .tab-pane > :first-child { margin-top: 1.5rem !important; }
 .fiche-table-heading { padding: .75rem 1rem; border-bottom: 1px solid #e4e9ef; background: #1f3864; color: #fff; border-radius: 14px 14px 0 0; }
-.fiche-grid-wrap { width: 100%; border-radius: 14px; }
+.fiche-grid-wrap { width: 100%; max-height: calc(100vh - 250px); overflow: auto; border-radius: 14px; }
+.focus-mode .fiche-grid-wrap { max-height: calc(100vh - 110px); }
+.fiche-grid thead th { position: sticky; top: 0; z-index: 8; }
+.fiche-grid thead .poste-column { left: 0; z-index: 12; }
+.fiche-grid .poste-cell { position: sticky; left: 0; z-index: 6; box-shadow: 1px 0 0 #dbe3ec; }
 .fiche-table-heading + .fiche-grid-wrap { border-radius: 0 0 14px 14px; }
 .fiche-grid { min-width: 560px; table-layout: auto; }
 .fiche-grid thead th { background: #d9e1f2; color: #1f3864; text-align: center; font-size: .72rem; }
-.fiche-grid thead .poste-column { text-align: left; position: sticky; z-index: 9; }
+.fiche-grid thead .poste-column { text-align: left; }
 .fiche-grid .poste-cell { min-width: 260px; max-width: 420px; vertical-align: middle; font-weight: 500; }
 .fiche-grid .measure-column { min-width: 150px; white-space: normal; }
 .fiche-grid .is-total-row .poste-cell { font-weight: 800; color: var(--navy); background: #eef3fb !important; }
@@ -324,6 +328,11 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .partner-logo-card { transition: none; }
+}
+
+@media (max-width: 767.98px) {
+  .fiche-grid .poste-cell, .fiche-grid thead .poste-column { min-width: 140px; max-width: 44vw; }
+  .fiche-grid-wrap { max-height: calc(100vh - 200px); }
 }
 
 @media print {
