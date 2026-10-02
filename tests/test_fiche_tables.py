@@ -230,3 +230,23 @@ def test_supplied_1776_variables_import_and_render_once_in_order(client):
         "NET N-1",
     ]
     assert html.count("<tbody>") == 1
+
+
+def test_note_3d_is_a_five_measure_table_with_three_blocks_and_a_total():
+    values = _values_by_fiche()["NOTE_AMORT"]
+
+    section = build_accounting_sections(values, "NOTE_AMORT")[0]
+    question, table = section["tables"]
+
+    assert section["layout"] == "model"
+    assert question["rows"][0]["poste"] == "La note 3D est-elle renseignée ?"
+    assert table["columns"] == [
+        "Montant brut",
+        "Amortissements pratiqués",
+        "Valeur comptable nette",
+        "Prix de cession",
+        "Plus ou moins-value",
+    ]
+    assert len(table["rows"]) == 15
+    assert [row["poste"] for row in table["rows"] if row["is_total"]] == ["TOTAL GÉNÉRAL"]
+    assert _source_orders(section) == [value.column.column_index for value in values]

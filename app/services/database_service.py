@@ -1,7 +1,8 @@
 from sqlalchemy import inspect, text
 
 from app.extensions import db
-from app.models import User
+from app.config.fiche_mapping import FICHE_DEFINITIONS
+from app.models import FicheStatus, ImportColumn, User
 from app.services.auth_service import create_user
 
 
@@ -31,6 +32,19 @@ def upgrade_legacy_schema():
         for statement in statements:
             connection.execute(text(statement))
         connection.execute(text("CREATE INDEX IF NOT EXISTS ix_dsfs_assigned_to_id ON dsfs (assigned_to_id)"))
+
+
+def sync_fiche_names():
+    """Aligne les noms de fiches enregistrés (DSF déjà importées) sur le mapping courant."""
+    tables = set(inspect(db.engine).get_table_names())
+    if not {"fiche_statuses", "import_columns"} <= tables:
+        return
+    for definition in FICHE_DEFINITIONS:
+        for model in (FicheStatus, ImportColumn):
+            model.query.filter(
+                model.fiche_code == definition["code"], model.fiche_name != definition["name"]
+            ).update({"fiche_name": definition["name"]}, synchronize_session=False)
+    db.session.commit()
 
 
 def ensure_initial_admin(username, password):

@@ -64,6 +64,35 @@ BLOCK_CODES = [
 ]
 
 
+# Structures qui remplacent celles du classeur (documentation métier plus récente).
+NOTE_3D_COLUMNS = ["MONT_BRUT", "AMORT_PRAT", "VAL_COMPTABLE", "PRIX_CESSION", "PLUS_OU_VALUE"]
+NOTE_3D_ROWS = [
+    "AE Frais de recherche et de développement",
+    "AF Brevets, licences, logiciels et droits assimilés",
+    "AG Fonds commercial et droit au bail",
+    "AH Autres immobilisations incorporelles",
+    "AD IMMOBILISATIONS INCORPORELLES",
+    "AJ Terrains",
+    "AK Bâtiments",
+    "AL Installations et agencements",
+    "AM Matériel",
+    "AN Matériel de transport",
+    "AI IMMOBILISATIONS CORPORELLES",
+    "Titres de participation",
+    "Autres immobilisations financières",
+    "IMMOBILISATIONS FINANCIÈRES",
+    "TOTAL GÉNÉRAL",
+]
+OVERRIDES = {
+    "NOTE_AMORT": [
+        {"title": None, "columns": ["Valeur"], "question": True,
+         "rows": [{"label": "La note 3D est-elle renseignée ?"}]},
+        {"title": None, "columns": NOTE_3D_COLUMNS, "question": False,
+         "rows": [{"label": label} for label in NOTE_3D_ROWS]},
+    ],
+}
+
+
 def _is_optional(code, block_title, label):
     """Lignes présentes dans certaines versions seulement du fichier source."""
     if code == "IDENT" and label == "Cle":
@@ -140,6 +169,7 @@ def extract(path):
         table["rows"].append(row)
         if question:
             table = None
+    layouts.update(OVERRIDES)
     return layouts
 
 

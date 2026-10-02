@@ -185,9 +185,14 @@ def create_app(config_object=Config):
 
     with app.app_context():
         db.create_all()
-        from app.services.database_service import ensure_initial_admin, upgrade_legacy_schema
+        from app.services.database_service import (
+            ensure_initial_admin,
+            sync_fiche_names,
+            upgrade_legacy_schema,
+        )
 
         upgrade_legacy_schema()
+        sync_fiche_names()
         ensure_initial_admin(
             app.config["INITIAL_ADMIN_USERNAME"],
             app.config["INITIAL_ADMIN_PASSWORD"],
