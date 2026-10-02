@@ -11,6 +11,7 @@ from app.services.admin_dashboard_service import build_admin_performance, build_
 from app.services.auth_service import admin_required, login_required, create_user, current_user, normalize_full_name
 from app.services.dsf_service import search_dsfs
 from app.services.activity_service import activity_groups
+from app.services.search_service import Page, rank_matching_ids
 
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -219,31 +220,37 @@ def global_search():
     activity, branches = activity_groups(assigned_only=not current_user().is_admin)
     branch = request.args.get("branch", "")
     page = max(1, request.args.get("page", 1, type=int))
-    query = DSF.query.join(ImportSession).options(
-        joinedload(DSF.assignee), joinedload(DSF.import_session),
-    )
+    per_page = 50
+    query = DSF.query.join(ImportSession).outerjoin(User, DSF.assigned_to_id == User.id)
     if branch:
         query = query.filter(DSF.id.in_([i for i, a in activity.items() if a["key"] == branch]))
-    if term:
-        # Treat user-entered SQL wildcard characters as literal text.
-        escaped = term.replace("!", "!!").replace("%", "!%").replace("_", "!_")
-        pattern = f"%{escaped}%"
-        query = query.filter(or_(
-            DSF.id.in_([i for i, a in activity.items() if term.casefold() in a["label"].casefold()]),
-            DSF.niu.ilike(pattern, escape="!"),
-            DSF.numero_dsf.ilike(pattern, escape="!"),
-            DSF.raison_sociale.ilike(pattern, escape="!"),
-            DSF.sigle.ilike(pattern, escape="!"),
-            ImportSession.filename.ilike(pattern, escape="!"),
-            DSF.assignee.has(or_(User.username.ilike(pattern, escape="!"), User.full_name.ilike(pattern, escape="!"))),
-        ))
     if assignment == "assigned":
         query = query.filter(DSF.assigned_to_id.is_not(None))
     elif assignment == "unassigned":
         query = query.filter(DSF.assigned_to_id.is_(None))
-    pagination = query.order_by(DSF.raison_sociale, DSF.id).paginate(
-        page=page, per_page=50, error_out=False,
+    rows = query.with_entities(
+        DSF.id, DSF.niu, DSF.numero_dsf, DSF.raison_sociale, DSF.sigle,
+        ImportSession.filename, User.username, User.full_name,
+    ).order_by(DSF.raison_sociale, DSF.id).all()
+    ids = rank_matching_ids(
+        [
+            (
+                row.id, row.niu, row.numero_dsf, row.raison_sociale, row.sigle,
+                " ".join(filter(None, (
+                    activity.get(row.id, {}).get("label"), row.filename, row.username, row.full_name,
+                ))),
+            )
+            for row in rows
+        ],
+        term,
     )
+    page_ids = ids[(page - 1) * per_page : page * per_page]
+    loaded = {
+        dsf.id: dsf
+        for dsf in DSF.query.options(joinedload(DSF.assignee), joinedload(DSF.import_session))
+        .filter(DSF.id.in_(page_ids)).all()
+    }
+    pagination = Page([loaded[i] for i in page_ids if i in loaded], page, per_page, len(ids))
     return render_template(
         "admin/global_search.html", pagination=pagination,
         term=term, assignment=assignment, activity=activity, branches=branches, branch=branch,

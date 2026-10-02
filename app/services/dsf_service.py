@@ -4,6 +4,7 @@ from sqlalchemy import func, or_
 
 from app.extensions import db
 from app.models import AuditLog, DSF, DSFValue, FicheStatus, ImportColumn
+from app.services.search_service import rank_matching_ids
 from app.services.value_codec import display_value, parse_user_value, serialize_value, values_equal
 
 
@@ -258,17 +259,24 @@ def search_dsfs(term, status=None, import_session_id=None, assigned_to_id=None, 
         query = query.filter(DSF.anomaly_count > 0)
     elif status in {"not_started", "in_progress", "completed"}:
         query = query.filter_by(status=status)
-    if term:
-        pattern = f"%{term.strip()}%"
-        query = query.filter(
-            or_(
-                DSF.niu.ilike(pattern),
-                DSF.numero_dsf.ilike(pattern),
-                DSF.raison_sociale.ilike(pattern),
-                DSF.sigle.ilike(pattern),
-            )
-        )
+    if term and term.strip():
+        rows = [
+            (row.id, row.niu, row.numero_dsf, row.raison_sociale, row.sigle, "")
+            for row in query.with_entities(DSF.id, DSF.niu, DSF.numero_dsf, DSF.raison_sociale, DSF.sigle)
+            .order_by(DSF.raison_sociale, DSF.annee.desc())
+            .all()
+        ]
+        return load_dsfs_in_order(rank_matching_ids(rows, term))
     return query.order_by(DSF.raison_sociale, DSF.annee.desc()).all()
+
+
+def load_dsfs_in_order(ids, chunk=500):
+    """Charge les DSF en conservant l'ordre des identifiants fournis."""
+    found = {}
+    for start in range(0, len(ids), chunk):
+        batch = ids[start : start + chunk]
+        found.update({dsf.id: dsf for dsf in DSF.query.filter(DSF.id.in_(batch)).all()})
+    return [found[dsf_id] for dsf_id in ids if dsf_id in found]
 
 
 def fiche_counts(dsf_id):

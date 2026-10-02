@@ -452,14 +452,33 @@
     return element.innerHTML;
   }
 
-  const instantSearch = document.getElementById("instantDsfSearch");
-  instantSearch?.addEventListener("input", () => {
-    const term = instantSearch.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    document.querySelectorAll("#dsfRows tr[data-search]").forEach(row => {
-      const haystack = row.dataset.search.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      row.classList.toggle("d-none", !haystack.includes(term));
-    });
-  });
+  // Recherche instantanée : insensible à la casse, aux accents et aux séparateurs (NIU « M01-23 » = « m0123 »).
+  const foldText = text => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const compactText = text => foldText(text).replace(/[^0-9a-z]/g, "");
+  function bindInstantSearch(input, rowSelector) {
+    if (!input) return;
+    const counter = document.createElement("small");
+    counter.className = "text-secondary d-block mt-1";
+    counter.setAttribute("aria-live", "polite");
+    input.insertAdjacentElement("afterend", counter);
+    const apply = () => {
+      const tokens = foldText(input.value).split(/\s+/).filter(Boolean);
+      const rows = Array.from(document.querySelectorAll(rowSelector));
+      let visible = 0;
+      rows.forEach(row => {
+        const haystack = foldText(row.dataset.search);
+        const compact = compactText(row.dataset.search);
+        const match = tokens.every(token => haystack.includes(token) || (compactText(token).length >= 2 && compact.includes(compactText(token))));
+        row.classList.toggle("d-none", !match);
+        if (match) visible += 1;
+      });
+      counter.textContent = tokens.length ? (visible ? `${visible} DSF trouvée(s) sur ${rows.length}` : "Aucune DSF ne correspond à cette recherche.") : "";
+    };
+    input.addEventListener("input", apply);
+    if (input.value) apply();
+  }
+  bindInstantSearch(document.getElementById("instantDsfSearch"), "#dsfRows tr[data-search]");
+  bindInstantSearch(document.getElementById("adminDsfSearch"), "#adminDsfRows tr[data-search]");
 
   document.getElementById("sessionSelector")?.addEventListener("change", event => {
     const url = new URL(window.location.href);
@@ -486,15 +505,6 @@
     url.searchParams.set("session_id", event.target.value);
     url.searchParams.delete("q");
     window.location.href = url.toString();
-  });
-
-  const adminSearch = document.getElementById("adminDsfSearch");
-  adminSearch?.addEventListener("input", () => {
-    const term = adminSearch.value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    document.querySelectorAll("#adminDsfRows tr[data-search]").forEach(row => {
-      const haystack = row.dataset.search.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      row.classList.toggle("d-none", !haystack.includes(term));
-    });
   });
 
   document.querySelector(".bulk-assignment-form")?.addEventListener("submit", event => {
