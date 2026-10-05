@@ -8,6 +8,10 @@ services:
       - .env.production
     volumes:
       - postgres_data:/var/lib/postgresql
+    # Accessible uniquement depuis le VPS lui-même (tunnel SSH pour pgAdmin).
+    # Ne jamais retirer « 127.0.0.1 » : le port ne doit pas être exposé sur Internet.
+    ports:
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s

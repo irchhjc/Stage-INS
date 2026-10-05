@@ -30,3 +30,12 @@ def test_component_database_settings_encode_password(monkeypatch):
     monkeypatch.setenv("POSTGRES_DB", "insdsf")
     url = configured_database_url()
     assert url == "postgresql+psycopg://dsf_app:secret%3A%40value@db:5432/insdsf"
+
+
+def test_database_port_is_published_on_vps_loopback_only():
+    from pathlib import Path
+
+    compose = (Path(__file__).parents[1] / "compose.prod.yaml").read_text(encoding="utf-8")
+    published = [line.strip() for line in compose.splitlines() if "5432" in line and line.strip().startswith("- ")]
+
+    assert published == ['- "127.0.0.1:5432:5432"']

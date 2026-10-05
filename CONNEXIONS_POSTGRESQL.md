@@ -33,3 +33,27 @@ d'une connexion de test fermée. Ce test ne mesure pas la capacité maximale de
 l'application et ne simule pas des écritures concurrentes.
 
 Référence : https://docs.sqlalchemy.org/en/20/core/pooling.html
+
+## Consulter la base du VPS avec pgAdmin (tunnel SSH)
+
+PostgreSQL n'écoute sur le VPS que sur `127.0.0.1:5432` (voir `compose.prod.yaml`).
+Il n'est jamais joignable depuis Internet : on passe par un tunnel SSH.
+Ne retirez jamais le `127.0.0.1` devant le port et n'ouvrez pas 5432 dans le pare-feu.
+
+1. **Déployer la configuration** : après le push sur `main`, la pipeline recrée le conteneur
+   `db` avec le port local. Vérifier sur le VPS : `ss -ltn | grep 5432` doit afficher
+   `127.0.0.1:5432` (et non `0.0.0.0:5432`).
+2. **Identifiants** (sur le VPS) : `grep -E "^POSTGRES_(DB|USER|PASSWORD)=" /opt/dsf-control/.env.production`
+   (base `insdsf`, utilisateur `dsf_app` par défaut).
+3. **Ouvrir le tunnel** depuis Windows : `.\scripts\open_db_tunnel.ps1`
+   (ou `ssh -N -L 5433:127.0.0.1:5432 root@92.113.26.206`). Laisser la fenêtre ouverte.
+4. **pgAdmin** : clic droit sur *Servers* > *Register* > *Server…*
+   - General : Name = `INS DSF (VPS)`
+   - Connection : Host = `localhost`, Port = `5433`, Maintenance database = `insdsf`,
+     Username = `dsf_app`, Password = celui de `.env.production`
+   - Save.
+5. **Arborescence** : `INS DSF (VPS) > Databases > insdsf > Schemas > public > Tables`.
+
+Bonnes pratiques : lire avec `SELECT`, ne pas modifier les données à la main (le journal
+d'audit et les contrôles de l'application seraient contournés), lancer `./deploy/backup.sh`
+avant toute intervention, fermer le tunnel (Ctrl+C) en fin de session.
