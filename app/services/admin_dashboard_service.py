@@ -176,7 +176,7 @@ def build_admin_performance(date_from_raw=None, date_to_raw=None):
 def build_controller_daily_stats(date_from, date_to, controllers):
     """Per-controller daily activity stats (DSFs touched, fiches closed, corrections)."""
     if not controllers:
-        return {"rows": [], "day_labels": [], "max_dsfs_per_day": 0}
+        return {"rows": [], "totals": None, "day_labels": [], "max_dsfs_per_day": 0}
 
     start_utc, end_utc = _utc_bounds(date_from, date_to)
     days_asc = [date_from + timedelta(days=i) for i in range((date_to - date_from).days + 1)]
@@ -282,8 +282,27 @@ def build_controller_daily_stats(date_from, date_to, controllers):
             "total_corrections": total_corrections,
         })
 
+    # Ligne « Total » : somme, par jour, des DSF de chaque contrôleur (chaque colonne s'additionne).
+    total_days = [
+        {
+            "date": day,
+            "dsfs": sum(len(raw[c.id][day]["dsfs"]) for c in controllers),
+            "fiches": sum(raw[c.id][day]["fiches"] for c in controllers),
+            "corrections": sum(raw[c.id][day]["corrections"] for c in controllers),
+            "controllers": sum(1 for c in controllers if raw[c.id][day]["dsfs"]),
+        }
+        for day in days_desc
+    ]
+    totals = {
+        "days": total_days,
+        "total_dsfs": sum(row["total_dsfs"] for row in rows),
+        "total_fiches": sum(row["total_fiches"] for row in rows),
+        "total_corrections": sum(row["total_corrections"] for row in rows),
+    }
+
     return {
         "rows": rows,
+        "totals": totals,
         "day_labels": [{"date": d, "label": d.strftime("%d/%m")} for d in days_desc],
         "max_dsfs_per_day": max_dsfs,
     }

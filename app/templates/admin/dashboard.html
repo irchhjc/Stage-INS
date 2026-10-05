@@ -116,6 +116,22 @@
           </tr>
           {% endfor %}
         </tbody>
+        {% if controller_daily.totals %}
+        <tfoot>
+          <tr class="hm-total-row">
+            <th class="hm-name-col" scope="row">Total par jour</th>
+            {% for day in controller_daily.totals.days %}
+            <td class="hm-sum-cell{{ ' is-empty' if day.dsfs == 0 }}"
+                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ day.dsfs }} DSF au total, {{ day.controllers }} contrôleur(s) actif(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
+              {{- day.dsfs if day.dsfs else '–' -}}
+            </td>
+            {% endfor %}
+            <td class="hm-total-col"><strong>{{ controller_daily.totals.total_dsfs if controller_daily.totals.total_dsfs else '—' }}</strong></td>
+            <td class="hm-total-col"><strong>{{ controller_daily.totals.total_fiches if controller_daily.totals.total_fiches else '—' }}</strong></td>
+            <td class="hm-total-col"><strong>{{ controller_daily.totals.total_corrections if controller_daily.totals.total_corrections else '—' }}</strong></td>
+          </tr>
+        </tfoot>
+        {% endif %}
       </table>
     </div>
 

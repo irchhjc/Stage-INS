@@ -112,6 +112,10 @@ body {
 .hm-day-col { min-width: 28px; max-width: 34px; }
 .hm-total-col { min-width: 60px; text-align: center !important; border-left: 2px solid var(--gray-100); padding: .28rem .45rem !important; font-size: .75rem; }
 .hm-cell { width: 28px; height: 28px; text-align: center; vertical-align: middle; border-radius: 5px; font-size: .65rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: default; transition: filter .1s ease; }
+.hm-total-row th, .hm-total-row td { border-top: 2px solid #1f3864; background: #eef3fb; color: #1f3864; }
+.hm-total-row .hm-name-col { background: #eef3fb; }
+.hm-sum-cell { min-width: 28px; padding: .35rem 0; text-align: center; font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; cursor: default; }
+.hm-sum-cell.is-empty { color: #9aa7b4; font-weight: 500; }
 .hm-cell:hover { filter: brightness(.88); }
 .hm-cell span { display: block; line-height: 28px; }
 .activity-0 { background: #edf1f5; }
