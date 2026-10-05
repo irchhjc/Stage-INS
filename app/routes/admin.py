@@ -7,7 +7,8 @@ from flask import Blueprint, abort, flash, redirect, render_template, request, u
 
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
-from app.services.admin_dashboard_service import build_admin_performance, build_controller_daily_stats
+from app.services.admin_dashboard_service import build_admin_performance, build_controller_daily_stats, resolve_period
+from app.services.control_quality_service import build_control_quality
 from app.services.auth_service import admin_required, login_required, create_user, current_user, normalize_full_name
 from app.services.dsf_service import search_dsfs
 from app.services.activity_service import activity_groups
@@ -82,6 +83,23 @@ def dashboard():
         term=term,
         selected_status=status,
         performance=performance,
+    )
+
+
+@admin_bp.get("/rigueur")
+@admin_required
+def control_quality():
+    try:
+        date_from, date_to = resolve_period(request.args.get("date_from"), request.args.get("date_to"))
+    except ValueError as exc:
+        flash(str(exc), "warning")
+        date_from, date_to = resolve_period()
+    controllers = User.query.filter_by(role="controller", is_active=True).order_by(User.username).all()
+    return render_template(
+        "admin/control_quality.html",
+        quality=build_control_quality(date_from, date_to, controllers),
+        date_from=date_from,
+        date_to=date_to,
     )
 
 

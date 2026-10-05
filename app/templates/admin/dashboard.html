@@ -34,6 +34,7 @@
     <li class="nav-item" role="presentation"><button class="nav-link" id="tab-assignments" data-bs-toggle="tab" data-bs-target="#pane-assignments" type="button" role="tab" aria-controls="pane-assignments" aria-selected="false">Affectations <span class="badge text-bg-light border ms-1">{{ performance.summary.unassigned }} libres</span></button></li>
     <li class="nav-item" role="presentation"><button class="nav-link" id="tab-controllers" data-bs-toggle="tab" data-bs-target="#pane-controllers" type="button" role="tab" aria-controls="pane-controllers" aria-selected="false">Contrôleurs <span class="badge text-bg-light border ms-1">{{ controllers|length }}</span></button></li>
     <li class="nav-item" role="presentation"><button class="nav-link" id="tab-accounts" data-bs-toggle="tab" data-bs-target="#pane-accounts" type="button" role="tab" aria-controls="pane-accounts" aria-selected="false">Comptes <span class="badge text-bg-light border ms-1">{{ account_users|length }}</span></button></li>
+    <li class="nav-item ms-auto" role="presentation"><a class="nav-link" href="{{ url_for('admin.control_quality') }}">Rigueur du contrôle <span aria-hidden="true">→</span></a></li>
   </ul>
 </nav>
 

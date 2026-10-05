@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Rigueur du contrôle — Contrôle DSF{% endblock %}
+{% macro pct(value) %}{{ ((value * 100)|round|int ~ ' %') if value is not none else '—' }}{% endmacro %}
+{% block content %}
+<div class="page-heading align-items-end">
+  <div>
+    <p class="eyebrow">ADMINISTRATION</p>
+    <h1>Rigueur du contrôle</h1>
+    <p class="text-secondary mb-0">Les contrôleurs vérifient-ils réellement les DSF ? Ce sont des signaux à examiner, pas des preuves : aucun indicateur ne remplace une relecture par sondage.</p>
+  </div>
+  <a class="btn btn-outline-secondary" href="{{ url_for('admin.dashboard') }}">← Administration</a>
+</div>
+
+<form class="performance-filter mt-3" method="get" action="{{ url_for('admin.control_quality') }}">
+  <div><label for="qFrom">Du</label><input id="qFrom" class="form-control form-control-sm" type="date" name="date_from" value="{{ date_from.isoformat() }}" required></div>
+  <div><label for="qTo">Au</label><input id="qTo" class="form-control form-control-sm" type="date" name="date_to" value="{{ date_to.isoformat() }}" required></div>
+  <button class="btn btn-sm btn-primary" type="submit">Actualiser</button>
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('admin.control_quality') }}">30 jours</a>
+</form>
+
+{% if quality.team %}
+<div class="row g-3 mt-1 performance-metrics">
+  <div class="col-6 col-lg"><div class="metric-card"><span>Score moyen de rigueur</span><strong>{{ quality.team.average_score if quality.team.average_score is not none else '—' }}</strong><small>sur 100, contrôleurs évaluables</small></div></div>
+  <div class="col-6 col-lg"><div class="metric-card metric-warning"><span>Contrôleurs à suivre</span><strong>{{ quality.team.to_review }}</strong><small>score inférieur à 75</small></div></div>
+  <div class="col-6 col-lg"><div class="metric-card metric-success"><span>Cellules vérifiées une à une</span><strong>{{ pct(quality.team.manual_coverage) }}</strong><small>le reste est validé en bloc</small></div></div>
+  <div class="col-6 col-lg"><div class="metric-card"><span>Fiches validées</span><strong>{{ quality.team.validations }}</strong><small>sur la période</small></div></div>
+  <div class="col-6 col-lg"><div class="metric-card metric-danger"><span>Validations à revoir</span><strong>{{ quality.team.flagged }}</strong><small>liste plus bas</small></div></div>
+</div>
+{% endif %}
+
+<section class="card panel-card mt-4" aria-labelledby="rigorTitle">
+  <div class="card-body p-4">
+    <h2 id="rigorTitle" class="h5">Indicateurs par contrôleur</h2>
+    <p class="small text-secondary">Du {{ date_from.strftime('%d/%m/%Y') }} au {{ date_to.strftime('%d/%m/%Y') }}. Le score n'est calculé qu'à partir de 5 fiches validées.</p>
+    {% if quality.rows %}
+    <div class="table-responsive">
+      <table class="table align-middle quality-table">
+        <thead><tr>
+          <th>Contrôleur</th><th>Score</th><th>DSF<br><small>touchées / terminées</small></th><th>Fiches validées</th>
+          <th title="Part des cellules vérifiées une à une, hors validation en bloc de la fiche">Vérif. manuelle</th>
+          <th title="Fiches validées sans avoir vérifié aucune cellule">Validées à vide</th>
+          <th title="Au moins 3 fiches d'une même DSF validées à moins de 10 s d'écart">En rafale</th>
+          <th title="Temps médian entre l'action précédente sur la DSF et la validation de la fiche">Temps médian / fiche</th>
+          <th title="Temps d'activité réel, pauses de plus de 10 min exclues">Temps actif</th>
+          <th title="Cellules vérifiées ou corrigées par minute d'activité">Cellules / min</th>
+          <th title="Corrections + fiches validées avec anomalies acceptées">Détections</th>
+          <th>Réouvertures</th>
+          <th title="Corrections faites sur ses DSF par un autre utilisateur">Corrigé par un autre</th>
+        </tr></thead>
+        <tbody>
+        {% for row in quality.rows %}
+        <tr>
+          <td class="fw-semibold">{{ row.user.display_label }}</td>
+          <td><span class="quality-score quality-{{ row.level }}">{{ row.score if row.score is not none else '—' }}</span></td>
+          <td>{{ row.dsf_touched }} / {{ row.dsf_completed }}</td>
+          <td>{{ row.fiches_validated }}{% if row.fiches_not_provided %}<small class="text-secondary"> (+{{ row.fiches_not_provided }} non renseignées)</small>{% endif %}</td>
+          <td>{{ pct(row.manual_coverage) }}<small class="d-block text-secondary">{{ row.cells_manual }} / {{ row.cells_total }}</small></td>
+          <td>{{ pct(row.empty_rate) }}</td>
+          <td>{{ pct(row.bulk_rate) }}</td>
+          <td>{{ ((row.median_seconds|round|int) ~ ' s') if row.median_seconds is not none else '—' }}</td>
+          <td>{{ row.active_minutes }} min{% if row.minutes_per_dsf %}<small class="d-block text-secondary">{{ row.minutes_per_dsf }} min / DSF terminée</small>{% endif %}</td>
+          <td>{{ row.cells_per_minute|round(1) if row.cells_per_minute is not none else '—' }}</td>
+          <td>{{ row.detections }}{% if row.detection_per_100 is not none %}<small class="d-block text-secondary">{{ row.detection_per_100|round(1) }} / 100 DSF</small>{% endif %}</td>
+          <td>{{ row.reopens }}</td>
+          <td>{{ row.corrected_by_other }}</td>
+        </tr>
+        {% if row.alerts %}
+        <tr class="quality-alert-row"><td></td><td colspan="12"><ul class="quality-alerts">{% for alert in row.alerts %}<li>{{ alert }}</li>{% endfor %}</ul></td></tr>
+        {% endif %}
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<p class="text-center text-secondary py-4">Aucun contrôleur actif.</p>{% endif %}
+  </div>
+</section>
+
+<section class="card panel-card mt-4" aria-labelledby="flaggedTitle">
+  <div class="card-body p-4">
+    <h2 id="flaggedTitle" class="h5">Validations à revoir par sondage</h2>
+    <p class="small text-secondary">Les 150 plus récentes. Ouvrez la fiche pour relire quelques lignes et juger par vous-même.</p>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead><tr><th>Date</th><th>Contrôleur</th><th>DSF</th><th>Fiche</th><th>Signaux</th><th></th></tr></thead>
+        <tbody>
+        {% for item in quality.flagged %}
+        <tr>
+          <td>{{ item.when }}</td>
+          <td>{{ item.controller.display_label }}</td>
+          <td>{{ item.dsf.raison_sociale or item.dsf.niu or item.dsf.id }}<small class="d-block text-secondary">{{ item.dsf.niu or '—' }} · N° {{ item.dsf.numero_dsf or '—' }}</small></td>
+          <td>{{ item.fiche_name }}</td>
+          <td>{% for reason in item.reasons %}<span class="badge text-bg-light border me-1">{{ reason }}</span>{% endfor %}</td>
+          <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('dsf.fiche_detail', dsf_id=item.dsf_id, fiche_code=item.fiche_code) }}">Ouvrir</a></td>
+        </tr>
+        {% else %}<tr><td colspan="6" class="text-center py-4 text-secondary">Aucune validation suspecte sur la période.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="card panel-card mt-4">
+  <div class="card-body p-4">
+    <h2 class="h5">Comment lire ces indicateurs</h2>
+    <dl class="quality-help small mb-0">
+      <dt>Vérification manuelle</dt><dd>Part des cellules vérifiées une à une. Les autres ont été validées d'un coup avec la fiche ou avec « Tout valider ».</dd>
+      <dt>Validées à vide</dt><dd>Fiches validées sans qu'aucune cellule n'ait été vérifiée ou corrigée avant.</dd>
+      <dt>En rafale</dt><dd>Au moins trois fiches de la même DSF validées à moins de 10 secondes d'écart.</dd>
+      <dt>Temps médian par fiche</dt><dd>Temps écoulé entre la dernière action sur la DSF et la validation. En dessous de 15 s, la fiche a très probablement été validée sans lecture.</dd>
+      <dt>Cellules par minute</dt><dd>Au-delà de 40 par minute d'activité, la cadence est peu compatible avec une vraie vérification.</dd>
+      <dt>Détections</dt><dd>Corrections de valeurs et fiches validées en acceptant des anomalies. Un contrôleur qui ne détecte jamais rien alors que ses collègues en trouvent mérite une relecture.</dd>
+      <dt>Corrigé par un autre</dt><dd>Corrections faites sur les DSF d'un contrôleur par une autre personne : signe d'erreurs non vues.</dd>
+      <dt>Score</dt><dd>100 moins des pénalités : vérification manuelle (jusqu'à 30), validations à vide (25), rafales (15), temps trop court (10), cadence irréaliste (10), aucune détection (10). Vert à partir de 75, orange à partir de 50.</dd>
+    </dl>
+    <p class="small text-secondary mt-3 mb-0"><strong>Limites :</strong> un contrôleur peut vérifier à l'œil sans toucher la cellule. Les pauses de plus de 10 minutes ne comptent pas comme du travail. Ces valeurs servent à repérer, pas à sanctionner.</p>
+  </div>
+</section>
+{% endblock %}

@@ -112,6 +112,17 @@ body {
 .hm-day-col { min-width: 28px; max-width: 34px; }
 .hm-total-col { min-width: 60px; text-align: center !important; border-left: 2px solid var(--gray-100); padding: .28rem .45rem !important; font-size: .75rem; }
 .hm-cell { width: 28px; height: 28px; text-align: center; vertical-align: middle; border-radius: 5px; font-size: .65rem; font-weight: 700; font-variant-numeric: tabular-nums; cursor: default; transition: filter .1s ease; }
+.quality-table { font-size: .82rem; }
+.quality-table thead th { white-space: nowrap; vertical-align: bottom; }
+.quality-table small { font-size: .7rem; }
+.quality-score { display: inline-grid; place-items: center; min-width: 2.6rem; padding: .25rem .5rem; border-radius: 999px; font-weight: 800; font-variant-numeric: tabular-nums; background: #edf1f5; color: #526273; }
+.quality-score.quality-good { background: #dff3e5; color: #08752c; }
+.quality-score.quality-warn { background: #fff0d1; color: #8a5a00; }
+.quality-score.quality-bad { background: #fde2e1; color: #b42318; }
+.quality-alert-row td { padding-top: 0 !important; border-top: 0; }
+.quality-alerts { margin: 0 0 .4rem; padding-left: 1.1rem; color: #8a3b12; font-size: .78rem; }
+.quality-help dt { margin-top: .6rem; color: var(--navy); }
+.quality-help dd { margin: 0; color: #526273; }
 .hm-total-row th, .hm-total-row td { border-top: 2px solid #1f3864; background: #eef3fb; color: #1f3864; }
 .hm-total-row .hm-name-col { background: #eef3fb; }
 .hm-sum-cell { min-width: 28px; padding: .35rem 0; text-align: center; font-size: .72rem; font-weight: 800; font-variant-numeric: tabular-nums; cursor: default; }
