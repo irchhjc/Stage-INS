@@ -174,7 +174,11 @@ def build_admin_performance(date_from_raw=None, date_to_raw=None):
 
 
 def build_controller_daily_stats(date_from, date_to, controllers):
-    """Per-controller daily activity stats (DSFs touched, fiches closed, corrections)."""
+    """Statistiques journalières par utilisateur qui contrôle (contrôleurs et administrateurs).
+
+    ``dsfs`` = DSF actuellement terminées dont la dernière fiche a été validée ce jour-là
+    par cet utilisateur ; ``fiches`` et ``corrections`` viennent du journal d'audit.
+    """
     if not controllers:
         return {"rows": [], "totals": None, "day_labels": [], "max_dsfs_per_day": 0}
 
@@ -212,11 +216,34 @@ def build_controller_daily_stats(date_from, date_to, controllers):
         day = _local_date(created_at)
         if day not in raw[ctrl.id]:
             continue
-        raw[ctrl.id][day]["dsfs"].add(dsf_id)
         if action in FINAL_FICHE_ACTIONS:
             raw[ctrl.id][day]["fiches"] += 1
         if action == "correction":
             raw[ctrl.id][day]["corrections"] += 1
+
+    # DSF terminées : jour et auteur de la validation de leur dernière fiche.
+    last_validation = (
+        db.session.query(FicheStatus.dsf_id, func.max(FicheStatus.validated_at).label("last_at"))
+        .join(DSF, DSF.id == FicheStatus.dsf_id)
+        .filter(DSF.status == "completed")
+        .group_by(FicheStatus.dsf_id)
+        .subquery()
+    )
+    completion_rows = (
+        db.session.query(FicheStatus.dsf_id, FicheStatus.validated_at, FicheStatus.operator)
+        .join(
+            last_validation,
+            (FicheStatus.dsf_id == last_validation.c.dsf_id)
+            & (FicheStatus.validated_at == last_validation.c.last_at),
+        )
+        .filter(FicheStatus.validated_at >= start_utc, FicheStatus.validated_at < end_utc)
+        .all()
+    )
+    for dsf_id, validated_at, operator in completion_rows:
+        ctrl = controller_by_name.get(operator)
+        day = _local_date(validated_at)
+        if ctrl is not None and day in raw[ctrl.id]:
+            raw[ctrl.id][day]["dsfs"].add(dsf_id)
 
     max_dsfs = max(
         (len(d["dsfs"]) for cd in raw.values() for d in cd.values()),

@@ -80,34 +80,34 @@
   <div class="card-body p-4">
     <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap mb-4">
       <div>
-        <p class="eyebrow mb-1">ACTIVITÉ JOURNALIÈRE</p>
-        <h2 id="activityHeatmapTitle" class="h4 mb-1">Activité par contrôleur</h2>
-        <p class="small text-secondary mb-0">DSF actives par jour · période du {{ performance.date_from.strftime('%d/%m/%Y') }} au {{ performance.date_to.strftime('%d/%m/%Y') }} · chaque cellule représente un contrôleur un jour donné</p>
+        <p class="eyebrow mb-1">PRODUCTION JOURNALIÈRE</p>
+        <h2 id="activityHeatmapTitle" class="h4 mb-1">DSF terminées par contrôleur</h2>
+        <p class="small text-secondary mb-0">DSF terminées par jour (jour de validation de la dernière fiche) · contrôleurs et administrateurs · période du {{ performance.date_from.strftime('%d/%m/%Y') }} au {{ performance.date_to.strftime('%d/%m/%Y') }} · chaque cellule = DSF terminées par une personne un jour donné</p>
       </div>
     </div>
 
     {% if controller_daily.rows %}
 
-    <div class="heatmap-wrap" role="region" aria-label="Carte d'activité journalière par contrôleur">
+    <div class="heatmap-wrap" role="region" aria-label="DSF terminées par jour et par contrôleur">
       <table class="heatmap-table">
         <thead>
           <tr>
-            <th class="hm-name-col">Contrôleur</th>
+            <th class="hm-name-col">Contrôleur / admin</th>
             {% for dl in controller_daily.day_labels %}
             <th class="hm-day-col" title="{{ dl.date.strftime('%d/%m/%Y') }}">{{ dl.label }}</th>
             {% endfor %}
-            <th class="hm-total-col">DSF</th>
-            <th class="hm-total-col">Fiches</th>
+            <th class="hm-total-col" title="DSF terminées sur la période">DSF term.</th>
+            <th class="hm-total-col" title="Fiches clôturées (activité)">Fiches</th>
             <th class="hm-total-col">Correct.</th>
           </tr>
         </thead>
         <tbody>
           {% for row in controller_daily.rows %}
           <tr>
-            <td class="hm-name-col">{{ row.user.display_label }}</td>
+            <td class="hm-name-col">{{ row.user.display_label }}{% if row.user.is_admin %} <span class="badge text-bg-light border" title="Administrateur">admin</span>{% endif %}</td>
             {% for day in row.days %}
             <td class="hm-cell activity-{{ day.level }}"
-                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ row.user.display_label }} : {{ day.dsfs }} DSF active(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
+                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ row.user.display_label }} : {{ day.dsfs }} DSF terminée(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
               {%- if day.dsfs > 0 %}<span>{{ day.dsfs }}</span>{% endif -%}
             </td>
             {% endfor %}
@@ -123,7 +123,7 @@
             <th class="hm-name-col" scope="row">Total par jour</th>
             {% for day in controller_daily.totals.days %}
             <td class="hm-sum-cell{{ ' is-empty' if day.dsfs == 0 }}"
-                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ day.dsfs }} DSF au total, {{ day.controllers }} contrôleur(s) actif(s), {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
+                title="{{ day.date.strftime('%d/%m/%Y') }} — {{ day.dsfs }} DSF terminée(s) au total, {{ day.controllers }} personne(s) ayant terminé des DSF, {{ day.fiches }} fiche(s) clôturée(s), {{ day.corrections }} correction(s)">
               {{- day.dsfs if day.dsfs else '–' -}}
             </td>
             {% endfor %}
@@ -144,12 +144,12 @@
       <span class="hm-legend-cell activity-3"></span>
       <span class="hm-legend-cell activity-4"></span>
       <span>Plus actif</span>
-      <span class="ms-3 text-secondary">· Max observé : {{ controller_daily.max_dsfs_per_day }} DSF/jour</span>
+      <span class="ms-3 text-secondary">· Max observé : {{ controller_daily.max_dsfs_per_day }} DSF terminées/jour</span>
     </div>
 
 
     {% else %}
-    <p class="text-center text-secondary py-4">Aucun contrôleur actif ou aucune activité enregistrée sur la période.</p>
+    <p class="text-center text-secondary py-4">Aucun contrôleur actif ou aucune DSF terminée sur la période.</p>
     {% endif %}
   </div>
 </section>

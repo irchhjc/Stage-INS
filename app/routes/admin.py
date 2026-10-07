@@ -65,10 +65,12 @@ def dashboard():
     except ValueError as exc:
         flash(str(exc), "warning")
         performance = build_admin_performance()
+    # Les administrateurs contrôlent parfois des DSF : ils figurent dans le suivi journalier.
+    reviewers = User.query.filter(User.is_active.is_(True), User.role.in_(["controller", "admin"])).order_by(User.role, User.username).all()
     controller_daily = build_controller_daily_stats(
         performance["date_from"],
         performance["date_to"],
-        controllers,
+        reviewers,
     )
     return render_template(
         "admin/dashboard.html",
