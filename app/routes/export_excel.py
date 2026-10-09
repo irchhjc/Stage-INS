@@ -32,6 +32,26 @@ def export_all_completed():
         return redirect(request.referrer or url_for("admin.dashboard"))
 
 
+@export_bp.post("/<int:import_session_id>/not-started")
+@admin_required
+def export_not_started(import_session_id):
+    try:
+        path = export_controlled_workbook(import_session_id, status="not_started")
+        return send_file(
+            path,
+            as_attachment=True,
+            download_name=path.name,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    except (ValueError, FileNotFoundError) as exc:
+        flash(f"Export impossible : {exc}", "warning")
+        return redirect(request.referrer or url_for("admin.dashboard"))
+    except Exception as exc:
+        current_app.logger.exception("Échec de l'export des DSF non commencées")
+        flash(f"Export impossible : {exc}", "danger")
+        return redirect(request.referrer or url_for("admin.dashboard"))
+
+
 @export_bp.post("/<int:import_session_id>")
 def export_workbook(import_session_id):
     try:

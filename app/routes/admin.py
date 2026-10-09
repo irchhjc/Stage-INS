@@ -55,6 +55,10 @@ def dashboard():
     dsfs = search_dsfs(term, status, active_session.id if active_session else None) if active_session else []
     activity, branches = activity_groups(active_session.id) if active_session else ({}, [])
     branch = request.args.get("branch", "")
+    not_started_count = (
+        DSF.query.filter_by(import_session_id=active_session.id, status="not_started").count()
+        if active_session else 0
+    )
     if branch:
         dsfs = [d for d in dsfs if activity.get(d.id, {}).get("key") == branch]
     try:
@@ -74,7 +78,7 @@ def dashboard():
     )
     return render_template(
         "admin/dashboard.html",
-        activity=activity, branches=branches, branch=branch,
+        activity=activity, branches=branches, branch=branch, not_started_count=not_started_count,
         account_users=User.query.order_by(User.username).all(),
         controllers=controllers,
         controller_progress=_controller_progress(controllers),

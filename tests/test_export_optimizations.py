@@ -45,3 +45,47 @@ def test_shared_styles_preserve_source_fonts_without_correction_leak(client,impo
     assert sheet.cell(2,5).fill.fgColor.rgb!='FFE2F0D9'
     assert book['JOURNAL_CONTROLE'].max_row==4
     book.close()
+
+
+def test_not_started_export_keeps_only_untouched_dsfs_without_journal(client, imported_session):
+    first, second = DSF.query.order_by(DSF.row_index).all()
+    first.status = 'completed'
+    db.session.commit()
+
+    path = export_controlled_workbook(imported_session.id, status='not_started')
+    book = load_workbook(path)
+    sheet = book[imported_session.sheet_name]
+
+    assert 'dsf_non_commencees' in path.name
+    assert 'JOURNAL_CONTROLE' not in book.sheetnames
+    assert sheet.max_row == imported_session.header_row + 1
+    assert sheet.cell(2, 1).value == second.numero_dsf
+    book.close()
+
+
+def test_not_started_export_route_is_admin_only_and_reports_empty(client, imported_session):
+    response = client.post(f'/export/{imported_session.id}/not-started')
+    assert response.status_code == 200
+    assert response.headers['Content-Disposition'].startswith('attachment')
+
+    DSF.query.update({'status': 'in_progress'})
+    db.session.commit()
+    response = client.post(f'/export/{imported_session.id}/not-started')
+    assert response.status_code == 302
+
+
+def test_admin_page_offers_the_not_started_export_with_count(client, imported_session):
+    html = client.get('/admin/').get_data(as_text=True)
+
+    assert 'Exporter les DSF non commencées (2)' in html
+    assert f'/export/{imported_session.id}/not-started' in html
+
+
+def test_controller_cannot_export_not_started_dsfs(app, client, imported_session):
+    from app.services.auth_service import create_user
+
+    create_user('ctrl', 'motdepasse10', role='controller')
+    other = app.test_client()
+    other.post('/auth/login', data={'username': 'ctrl', 'password': 'motdepasse10'})
+
+    assert other.post(f'/export/{imported_session.id}/not-started').status_code == 403

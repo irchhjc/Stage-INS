@@ -60,20 +60,24 @@ def _journal_sheet_name(workbook):
     return f"{base}_{number}"
 
 
-def _prepare_controlled_workbook(import_session_id, assigned_user_id=None):
+def _prepare_controlled_workbook(import_session_id, assigned_user_id=None, status="completed"):
     import_session = db.session.get(ImportSession, import_session_id)
     if import_session is None:
         raise ValueError("Session d'import introuvable.")
 
     completed_dsfs_query = DSF.query.filter(
         DSF.import_session_id == import_session.id,
-        DSF.status == "completed",
+        DSF.status == status,
     )
     if assigned_user_id is not None:
         completed_dsfs_query = completed_dsfs_query.filter(DSF.assigned_to_id == assigned_user_id)
     completed_dsfs = completed_dsfs_query.order_by(DSF.row_index).all()
     if not completed_dsfs:
-        raise ValueError("Aucune DSF entièrement contrôlée n'est disponible pour l'export.")
+        raise ValueError(
+            "Aucune DSF entièrement contrôlée n'est disponible pour l'export."
+            if status == "completed"
+            else "Aucune DSF non commencée n'est disponible pour l'export."
+        )
 
     completed_dsf_ids = [dsf.id for dsf in completed_dsfs]
     selected_rows = {dsf.row_index for dsf in completed_dsfs}
@@ -97,7 +101,8 @@ def _prepare_controlled_workbook(import_session_id, assigned_user_id=None):
     ).filter(DSFValue.dsf_id.in_(completed_dsf_ids))
     values_query = values_query.join(DSF).join(ImportColumn).order_by(DSF.row_index, ImportColumn.column_index)
     font_cache = {}
-    for value in values_query.yield_per(2000):
+    # Une DSF non commencée n'a ni correction ni vérification : les cellules d'origine restent telles quelles.
+    for value in (values_query.yield_per(2000) if status == "completed" else ()):
         dsf = dsfs_by_id[value.dsf_id]
         column = columns[value.import_column_id]
         cell = worksheet.cell(row=dsf.row_index, column=column.column_index)
@@ -115,6 +120,9 @@ def _prepare_controlled_workbook(import_session_id, assigned_user_id=None):
         for other_sheet in list(workbook.worksheets):
             if other_sheet is not worksheet:
                 workbook.remove(other_sheet)
+
+    if status != "completed":
+        return workbook, import_session, len(completed_dsfs)
 
     journal = workbook.create_sheet(_journal_sheet_name(workbook))
     headers = [
@@ -170,17 +178,19 @@ def _prepare_controlled_workbook(import_session_id, assigned_user_id=None):
     return workbook, import_session, len(completed_dsfs)
 
 
-def export_controlled_workbook(import_session_id, assigned_user_id=None, username=None):
+def export_controlled_workbook(import_session_id, assigned_user_id=None, username=None, status="completed"):
     started = perf_counter()
     workbook, import_session, completed_count = _prepare_controlled_workbook(
         import_session_id,
         assigned_user_id=assigned_user_id,
+        status=status,
     )
     output_dir = Path(current_app.config["EXPORT_FOLDER"])
     output_dir.mkdir(parents=True, exist_ok=True)
     safe_stem = Path(import_session.filename).stem[:80] or "dsf"
     scope = f"_{username}" if username else ""
-    output_path = output_dir / f"{safe_stem}_dsf_controlees{scope}_{uuid.uuid4().hex[:8]}.xlsx"
+    label = "dsf_controlees" if status == "completed" else "dsf_non_commencees"
+    output_path = output_dir / f"{safe_stem}_{label}{scope}_{uuid.uuid4().hex[:8]}.xlsx"
     try:
         workbook.save(output_path)
     finally:
