@@ -154,6 +154,11 @@ def build_admin_performance(date_from_raw=None, date_to_raw=None):
 
     total_all = DSF.query.count()
     total_completed_all = DSF.query.filter_by(status="completed").count()
+    # Compteurs « tous classeurs » : indépendants de la période (qui ne filtre que la cohorte importée).
+    assigned_all = DSF.query.filter(DSF.assigned_to_id.is_not(None)).count()
+    in_progress_all = DSF.query.filter_by(status="in_progress").count()
+    not_started_all = DSF.query.filter_by(status="not_started").count()
+    anomalies_all = DSF.query.filter(DSF.anomaly_count > 0).count()
     return {
         "date_from": date_from,
         "date_to": date_to,
@@ -168,6 +173,12 @@ def build_admin_performance(date_from_raw=None, date_to_raw=None):
             "completed": completed,
             "anomalies": anomalies,
             "completion_rate": int(round(completed / period_total * 100)) if period_total else 0,
+            "assigned_all": assigned_all,
+            "unassigned_all": total_all - assigned_all,
+            "in_progress_all": in_progress_all,
+            "not_started_all": not_started_all,
+            "anomalies_all": anomalies_all,
+            "completion_rate_all": int(round(total_completed_all / total_all * 100)) if total_all else 0,
         },
         "daily": daily_rows,
     }

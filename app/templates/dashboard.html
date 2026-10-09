@@ -6,8 +6,7 @@
   <div>
     <p class="eyebrow">PILOTAGE</p>
     <h1>Tableau de bord</h1>
-    {% if active_session %}<p class="text-secondary mb-0">{{ active_session.filename }} · {{ active_session.row_count }} DSF · {{ active_session.column_count }} variables</p>
-    {% elif all_sessions %}<p class="text-secondary mb-0">Tous les classeurs importés ({{ sessions|length }}) · {{ stats.total }} DSF</p>{% endif %}
+    {% if sessions %}<p class="text-secondary mb-0">Tous les classeurs importés ({{ sessions|length }}) · {{ stats.total }} DSF</p>{% endif %}
   </div>
   <div class="d-flex gap-2 flex-wrap justify-content-end">
     {% if current_user.is_admin %}
@@ -52,6 +51,8 @@
       <div>
         <span class="small text-secondary">Progression générale — DSF terminées / total</span>
         <div class="h4 mb-0 mt-1">{{ stats.completed }} / {{ stats.total }} — {{ stats.overall_progress }} %</div>
+        <small class="text-secondary">Tous les classeurs importés ({{ sessions|length }})</small>
+        {% if active_session and selected_stats %}<small class="d-block text-secondary">Classeur sélectionné ({{ active_session.filename }}) : {{ selected_stats.completed }} / {{ selected_stats.total }} — {{ selected_stats.overall_progress }} %</small>{% endif %}
       </div>
       <div class="progress dashboard-progress flex-grow-1" role="progressbar" aria-valuenow="{{ stats.overall_progress }}" aria-valuemin="0" aria-valuemax="100">
         <div class="progress-bar bg-success" style="width: {{ stats.overall_progress }}%"></div>

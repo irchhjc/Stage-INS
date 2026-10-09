@@ -336,6 +336,12 @@ def test_admin_dashboard_reports_dated_performance(client, imported_session):
         "completed": 1,
         "anomalies": 0,
         "completion_rate": 50,
+        "assigned_all": 1,
+        "unassigned_all": 1,
+        "in_progress_all": 0,
+        "not_started_all": 1,
+        "anomalies_all": 0,
+        "completion_rate_all": 50,
     }
     assert len(performance["daily"]) == 1
     daily = performance["daily"][0]

@@ -31,7 +31,7 @@
 <nav class="admin-tabs mt-4" aria-label="Sections de l'administration">
   <ul class="nav nav-tabs" id="adminTabs" role="tablist" data-tab-persist="admin-tab">
     <li class="nav-item" role="presentation"><button class="nav-link active" id="tab-overview" data-bs-toggle="tab" data-bs-target="#pane-overview" type="button" role="tab" aria-controls="pane-overview" aria-selected="true">Vue d'ensemble</button></li>
-    <li class="nav-item" role="presentation"><button class="nav-link" id="tab-assignments" data-bs-toggle="tab" data-bs-target="#pane-assignments" type="button" role="tab" aria-controls="pane-assignments" aria-selected="false">Affectations <span class="badge text-bg-light border ms-1">{{ performance.summary.unassigned }} libres</span></button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" id="tab-assignments" data-bs-toggle="tab" data-bs-target="#pane-assignments" type="button" role="tab" aria-controls="pane-assignments" aria-selected="false">Affectations <span class="badge text-bg-light border ms-1">{{ performance.summary.unassigned_all }} libres</span></button></li>
     <li class="nav-item" role="presentation"><button class="nav-link" id="tab-controllers" data-bs-toggle="tab" data-bs-target="#pane-controllers" type="button" role="tab" aria-controls="pane-controllers" aria-selected="false">Contrôleurs <span class="badge text-bg-light border ms-1">{{ controllers|length }}</span></button></li>
     <li class="nav-item" role="presentation"><button class="nav-link" id="tab-accounts" data-bs-toggle="tab" data-bs-target="#pane-accounts" type="button" role="tab" aria-controls="pane-accounts" aria-selected="false">Comptes <span class="badge text-bg-light border ms-1">{{ account_users|length }}</span></button></li>
     <li class="nav-item ms-auto" role="presentation"><a class="nav-link" href="{{ url_for('admin.control_quality') }}">Rigueur du contrôle <span aria-hidden="true">→</span></a></li>
@@ -59,18 +59,18 @@
     </div>
 
     <div class="row g-3 mt-2 performance-metrics">
-      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card"><span>Total historique</span><strong>{{ performance.summary.total_all }}</strong><small>Toutes les DSF importées</small></div></div>
-      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-success"><span>Total DSF terminées</span><strong>{{ performance.summary.completed_all }}</strong><small>Tous classeurs et toutes dates</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card"><span>Total DSF importées</span><strong>{{ performance.summary.total_all }}</strong><small>Tous les classeurs, toutes dates</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-success"><span>Terminées</span><strong>{{ performance.summary.completed_all }}</strong><small>{{ performance.summary.completion_rate_all }} % du total</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-warning"><span>En cours</span><strong>{{ performance.summary.in_progress_all }}</strong><small>Tous les classeurs</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-muted"><span>Non commencées</span><strong>{{ performance.summary.not_started_all }}</strong><small>Tous les classeurs</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card"><span>Affectées</span><strong>{{ performance.summary.assigned_all }}</strong><small>{{ performance.summary.unassigned_all }} non affectées</small></div></div>
+      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-danger"><span>Avec anomalies</span><strong>{{ performance.summary.anomalies_all }}</strong><small>Signalées actuellement</small></div></div>
       <div class="col-6 col-lg-4 col-xxl"><div class="metric-card"><span>DSF saisies sur la période</span><strong>{{ performance.summary.period_total }}</strong><small>Date d'import du classeur</small></div></div>
-      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card"><span>Affectées</span><strong>{{ performance.summary.assigned }}</strong><small>{{ performance.summary.unassigned }} non affectées</small></div></div>
-      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-warning"><span>En cours</span><strong>{{ performance.summary.in_progress }}</strong><small>Parmi les DSF saisies</small></div></div>
-      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-success"><span>Terminées sur la période</span><strong>{{ performance.summary.completed }}</strong><small>{{ performance.summary.completion_rate }} % des saisies</small></div></div>
-      <div class="col-6 col-lg-4 col-xxl"><div class="metric-card metric-danger"><span>Avec anomalies</span><strong>{{ performance.summary.anomalies }}</strong><small>Signalées actuellement</small></div></div>
     </div>
 
-    <div class="performance-rate mt-3" role="progressbar" aria-label="Taux d'achèvement des DSF saisies sur la période" aria-valuenow="{{ performance.summary.completion_rate }}" aria-valuemin="0" aria-valuemax="100">
-      <div class="d-flex justify-content-between gap-3"><span>Taux d'achèvement de la cohorte saisie</span><strong>{{ performance.summary.completion_rate }} %</strong></div>
-      <div class="progress mt-2"><div class="progress-bar bg-success" style="width: {{ performance.summary.completion_rate }}%"></div></div>
+    <div class="performance-rate mt-3" role="progressbar" aria-label="Progression globale : DSF terminées sur toutes les DSF importées" aria-valuenow="{{ performance.summary.completion_rate_all }}" aria-valuemin="0" aria-valuemax="100">
+      <div class="d-flex justify-content-between gap-3"><span>Progression globale — {{ performance.summary.completed_all }} DSF terminées sur {{ performance.summary.total_all }} (tous classeurs)</span><strong>{{ performance.summary.completion_rate_all }} %</strong></div>
+      <div class="progress mt-2"><div class="progress-bar bg-success" style="width: {{ performance.summary.completion_rate_all }}%"></div></div>
     </div>
 
   </div>

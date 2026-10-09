@@ -54,10 +54,12 @@ def dashboard():
     term = request.args.get("q", "")
     status = request.args.get("status", "")
     dsfs = search_dsfs(term, status, import_session_ids=session_ids) if sessions else []
-    stats = dashboard_stats(import_session_ids=session_ids) if sessions else dashboard_stats(-1)
+    # Compteurs et progression : toujours tous les classeurs importés, quel que soit le filtre du tableau.
+    stats = dashboard_stats(import_session_ids=[item.id for item in sessions]) if sessions else dashboard_stats(-1)
+    selected_stats = dashboard_stats(import_session_ids=session_ids) if active_session is not None else None
     export_completed_count = 0
     if active_session is not None:
-        export_completed_count = stats["completed"] if user.is_admin else DSF.query.filter_by(
+        export_completed_count = selected_stats["completed"] if user.is_admin else DSF.query.filter_by(
             import_session_id=active_session.id,
             assigned_to_id=user.id,
             status="completed",
@@ -67,6 +69,7 @@ def dashboard():
         completed_all=DSF.query.filter_by(status="completed").count() if user.is_admin else 0,
         dsfs=dsfs,
         stats=stats,
+        selected_stats=selected_stats,
         term=term,
         selected_status=status,
         list_mode="all",

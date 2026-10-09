@@ -58,3 +58,19 @@ def test_dashboard_stats_cover_all_workbooks(client):
     html = client.get("/").get_data(as_text=True)
 
     assert "Tous les classeurs importés (2) · 4 DSF" in html
+
+
+def test_dashboard_cards_and_progress_stay_global_when_a_workbook_is_selected(client):
+    from app.extensions import db
+
+    _import(client, "premier.xlsx")
+    _import(client, "second.xlsx")
+    first, second = ImportSession.query.order_by(ImportSession.id).all()
+    DSF.query.filter(DSF.import_session_id == first.id, DSF.row_index == 2).update({"status": "completed"})
+    db.session.commit()
+
+    html = client.get(f"/?session_id={first.id}").get_data(as_text=True)
+
+    assert "Tous les classeurs importés (2) · 4 DSF" in html
+    assert "1 / 4 — 25 %" in html
+    assert "Classeur sélectionné (premier.xlsx) : 1 / 2 — 50 %" in html
