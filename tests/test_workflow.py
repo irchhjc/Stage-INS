@@ -357,9 +357,9 @@ def test_admin_dashboard_reports_dated_performance(client, imported_session):
     assert response.status_code == 200
     assert "Performance des contrôles" in html
     assert "DSF saisies sur la période" in html
-    assert "Total DSF terminées" in html
-    assert "Tous classeurs et toutes dates" in html
-    assert "Taux d'achèvement de la cohorte saisie" in html
+    assert "Total DSF importées" in html
+    assert "Tous les classeurs, toutes dates" in html
+    assert "Progression globale — 1 DSF terminées sur 2 (tous classeurs)" in html
     assert "analyste" in html
 
 
