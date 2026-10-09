@@ -239,11 +239,14 @@ def build_controller_daily_stats(date_from, date_to, controllers):
         .filter(FicheStatus.validated_at >= start_utc, FicheStatus.validated_at < end_utc)
         .all()
     )
+    unattributed = set()
     for dsf_id, validated_at, operator in completion_rows:
         ctrl = controller_by_name.get(operator)
         day = _local_date(validated_at)
         if ctrl is not None and day in raw[ctrl.id]:
             raw[ctrl.id][day]["dsfs"].add(dsf_id)
+        else:
+            unattributed.add(dsf_id)
 
     max_dsfs = max(
         (len(d["dsfs"]) for cd in raw.values() for d in cd.values()),
@@ -325,6 +328,8 @@ def build_controller_daily_stats(date_from, date_to, controllers):
         "total_dsfs": sum(row["total_dsfs"] for row in rows),
         "total_fiches": sum(row["total_fiches"] for row in rows),
         "total_corrections": sum(row["total_corrections"] for row in rows),
+        # DSF terminées sur la période validées par un compte désactivé ou inconnu.
+        "unattributed": len(unattributed),
     }
 
     return {

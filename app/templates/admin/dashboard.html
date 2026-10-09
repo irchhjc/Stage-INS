@@ -146,6 +146,10 @@
       <span>Plus actif</span>
       <span class="ms-3 text-secondary">· Max observé : {{ controller_daily.max_dsfs_per_day }} DSF terminées/jour</span>
     </div>
+    {% if controller_daily.totals and controller_daily.totals.unattributed %}
+    <p class="small text-secondary mt-2 mb-0">{{ controller_daily.totals.unattributed }} DSF terminée(s) sur la période ne sont attribuées à aucun compte actif (validées par un compte désactivé ou inconnu) : elles ne figurent pas dans le tableau.</p>
+    {% endif %}
+    <p class="small text-secondary mt-2 mb-0">Le tableau ne compte que les DSF <strong>actuellement terminées</strong> : une DSF rouverte ou modifiée après sa validation en sort, puis revient au jour de sa nouvelle validation.</p>
 
 
     {% else %}

@@ -65,3 +65,16 @@ def test_admin_page_lists_admin_row_and_total_row(client, imported_session):
     assert "Total par jour" in html
     assert "DSF terminées par contrôleur" in html
     assert 'title="Administrateur">admin</span>' in html
+
+
+def test_completed_dsf_validated_by_unknown_account_is_reported_as_unattributed(client, imported_session):
+    first = DSF.query.order_by(DSF.id).first()
+    alice = create_user("alice", "motdepasse10", role="controller")
+    today = datetime.now(LOCAL_TIMEZONE).replace(hour=10, minute=0, second=0, microsecond=0)
+    _complete(first, "ancien_compte", today)
+    db.session.commit()
+
+    stats = build_controller_daily_stats(today.date(), today.date(), [alice])
+
+    assert stats["totals"]["total_dsfs"] == 0
+    assert stats["totals"]["unattributed"] == 1
