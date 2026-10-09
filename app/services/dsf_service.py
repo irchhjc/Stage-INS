@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import func, or_
+from sqlalchemy.orm import joinedload
 
 from app.extensions import db
 from app.models import AuditLog, DSF, DSFValue, FicheStatus, ImportColumn
@@ -226,9 +227,11 @@ def reopen_fiche(dsf, fiche_code, operator):
     db.session.commit()
 
 
-def dashboard_stats(import_session_id=None, assigned_to_id=None):
+def dashboard_stats(import_session_id=None, assigned_to_id=None, import_session_ids=None):
     query = DSF.query
-    if import_session_id:
+    if import_session_ids is not None:
+        query = query.filter(DSF.import_session_id.in_(import_session_ids))
+    elif import_session_id:
         query = query.filter_by(import_session_id=import_session_id)
     if assigned_to_id is not None:
         query = query.filter_by(assigned_to_id=assigned_to_id)
@@ -247,9 +250,11 @@ def dashboard_stats(import_session_id=None, assigned_to_id=None):
     }
 
 
-def search_dsfs(term, status=None, import_session_id=None, assigned_to_id=None, statuses=None):
+def search_dsfs(term, status=None, import_session_id=None, assigned_to_id=None, statuses=None, import_session_ids=None):
     query = DSF.query
-    if import_session_id:
+    if import_session_ids is not None:
+        query = query.filter(DSF.import_session_id.in_(import_session_ids))
+    elif import_session_id:
         query = query.filter_by(import_session_id=import_session_id)
     if assigned_to_id is not None:
         query = query.filter_by(assigned_to_id=assigned_to_id)
@@ -275,7 +280,14 @@ def load_dsfs_in_order(ids, chunk=500):
     found = {}
     for start in range(0, len(ids), chunk):
         batch = ids[start : start + chunk]
-        found.update({dsf.id: dsf for dsf in DSF.query.filter(DSF.id.in_(batch)).all()})
+        found.update(
+            {
+                dsf.id: dsf
+                for dsf in DSF.query.options(joinedload(DSF.assignee), joinedload(DSF.import_session))
+                .filter(DSF.id.in_(batch))
+                .all()
+            }
+        )
     return [found[dsf_id] for dsf_id in ids if dsf_id in found]
 
 

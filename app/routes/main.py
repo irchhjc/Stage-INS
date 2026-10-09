@@ -28,60 +28,67 @@ def _accessible_sessions(owned_active_only=False):
     )
 
 
-def _active_session(sessions, requested_session):
-    if requested_session:
-        return next((item for item in sessions if item.id == requested_session), None) or (sessions[0] if sessions else None)
-    return sessions[0] if sessions else None
+def _scope(sessions, raw_session_id):
+    """Classeur(s) affiché(s) : tous les classeurs accessibles par défaut, ou un seul choisi."""
+    if raw_session_id and str(raw_session_id).isdigit():
+        chosen = next((item for item in sessions if item.id == int(raw_session_id)), None)
+        if chosen is not None:
+            return chosen, [chosen.id]
+    return None, [item.id for item in sessions]
+
+
+def _scope_context(sessions, active_session):
+    return {
+        "sessions": sessions,
+        "active_session": active_session,
+        "all_sessions": bool(sessions) and active_session is None,
+        "session_param": active_session.id if active_session else "all",
+    }
 
 
 @main_bp.get("/")
 def dashboard():
     user = current_user()
     sessions = _accessible_sessions()
-    requested_session = request.args.get("session_id", type=int)
-    active_session = _active_session(sessions, requested_session)
+    active_session, session_ids = _scope(sessions, request.args.get("session_id"))
     term = request.args.get("q", "")
     status = request.args.get("status", "")
-    dsfs = search_dsfs(term, status, active_session.id if active_session else None) if active_session else []
-    stats = dashboard_stats(active_session.id if active_session else None) if active_session else dashboard_stats(-1)
-    export_completed_count = stats["completed"] if user.is_admin else (
-        DSF.query.filter_by(
+    dsfs = search_dsfs(term, status, import_session_ids=session_ids) if sessions else []
+    stats = dashboard_stats(import_session_ids=session_ids) if sessions else dashboard_stats(-1)
+    export_completed_count = 0
+    if active_session is not None:
+        export_completed_count = stats["completed"] if user.is_admin else DSF.query.filter_by(
             import_session_id=active_session.id,
             assigned_to_id=user.id,
             status="completed",
         ).count()
-        if active_session else 0
-    )
     return render_template(
         "dashboard.html",
         completed_all=DSF.query.filter_by(status="completed").count() if user.is_admin else 0,
-        sessions=sessions,
-        active_session=active_session,
         dsfs=dsfs,
         stats=stats,
         term=term,
         selected_status=status,
         list_mode="all",
         export_completed_count=export_completed_count,
+        **_scope_context(sessions, active_session),
     )
 
 
 @main_bp.get("/dsfs")
 def dsf_list():
     sessions = _accessible_sessions()
-    requested_session = request.args.get("session_id", type=int)
-    active_session = _active_session(sessions, requested_session)
+    active_session, session_ids = _scope(sessions, request.args.get("session_id"))
     term = request.args.get("q", "")
     status = request.args.get("status", "")
-    dsfs = search_dsfs(term, status, active_session.id if active_session else None) if active_session else []
+    dsfs = search_dsfs(term, status, import_session_ids=session_ids) if sessions else []
     return render_template(
         "dsf_list.html",
-        sessions=sessions,
-        active_session=active_session,
         dsfs=dsfs,
         term=term,
         selected_status=status,
         list_mode="all",
+        **_scope_context(sessions, active_session),
     )
 
 
@@ -91,8 +98,7 @@ def my_dsf_list():
     if user.is_admin:
         return redirect(url_for("main.dsf_list"))
     sessions = _accessible_sessions(owned_active_only=True)
-    requested_session = request.args.get("session_id", type=int)
-    active_session = _active_session(sessions, requested_session)
+    active_session, session_ids = _scope(sessions, request.args.get("session_id"))
     term = request.args.get("q", "")
     status = request.args.get("status", "")
     if status not in {"", "in_progress", "completed", "anomalies"}:
@@ -100,18 +106,17 @@ def my_dsf_list():
     dsfs = search_dsfs(
         term,
         status,
-        active_session.id if active_session else None,
         assigned_to_id=user.id,
         statuses=("in_progress", "completed"),
-    ) if active_session else []
+        import_session_ids=session_ids,
+    ) if sessions else []
     return render_template(
         "dsf_list.html",
-        sessions=sessions,
-        active_session=active_session,
         dsfs=dsfs,
         term=term,
         selected_status=status,
         list_mode="mine",
+        **_scope_context(sessions, active_session),
     )
 
 

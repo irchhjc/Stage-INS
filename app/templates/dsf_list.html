@@ -4,6 +4,6 @@
 <div class="page-heading">
   <div><p class="eyebrow">DOSSIERS</p><h1>{{ 'Mes DSF' if list_mode == 'mine' else 'Toutes les DSF' }}</h1></div>
 </div>
-{% if active_session %}{% include 'dsf_table.html' %}{% else %}<div class="empty-state"><p>{{ 'Vous n’avez encore aucune DSF en cours ou terminée.' if list_mode == 'mine' else 'Aucun classeur importé.' }}</p></div>{% endif %}
+{% if sessions %}{% include 'dsf_table.html' %}{% else %}<div class="empty-state"><p>{{ 'Vous n’avez encore aucune DSF en cours ou terminée.' if list_mode == 'mine' else 'Aucun classeur importé.' }}</p></div>{% endif %}
 {% endblock %}
 

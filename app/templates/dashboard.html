@@ -6,7 +6,8 @@
   <div>
     <p class="eyebrow">PILOTAGE</p>
     <h1>Tableau de bord</h1>
-    {% if active_session %}<p class="text-secondary mb-0">{{ active_session.filename }} · {{ active_session.row_count }} DSF · {{ active_session.column_count }} variables</p>{% endif %}
+    {% if active_session %}<p class="text-secondary mb-0">{{ active_session.filename }} · {{ active_session.row_count }} DSF · {{ active_session.column_count }} variables</p>
+    {% elif all_sessions %}<p class="text-secondary mb-0">Tous les classeurs importés ({{ sessions|length }}) · {{ stats.total }} DSF</p>{% endif %}
   </div>
   <div class="d-flex gap-2 flex-wrap justify-content-end">
     {% if current_user.is_admin %}
@@ -29,7 +30,7 @@
   </div>
 </div>
 
-{% if not active_session %}
+{% if not sessions %}
 <div class="empty-state mt-4">
   <div class="empty-icon">DSF</div>
   <h2>Aucun classeur importé</h2>
