@@ -60,24 +60,20 @@ def _journal_sheet_name(workbook):
     return f"{base}_{number}"
 
 
-def _prepare_controlled_workbook(import_session_id, assigned_user_id=None, status="completed"):
+def _prepare_controlled_workbook(import_session_id, assigned_user_id=None):
     import_session = db.session.get(ImportSession, import_session_id)
     if import_session is None:
         raise ValueError("Session d'import introuvable.")
 
     completed_dsfs_query = DSF.query.filter(
         DSF.import_session_id == import_session.id,
-        DSF.status == status,
+        DSF.status == "completed",
     )
     if assigned_user_id is not None:
         completed_dsfs_query = completed_dsfs_query.filter(DSF.assigned_to_id == assigned_user_id)
     completed_dsfs = completed_dsfs_query.order_by(DSF.row_index).all()
     if not completed_dsfs:
-        raise ValueError(
-            "Aucune DSF entièrement contrôlée n'est disponible pour l'export."
-            if status == "completed"
-            else "Aucune DSF non commencée n'est disponible pour l'export."
-        )
+        raise ValueError("Aucune DSF entièrement contrôlée n'est disponible pour l'export.")
 
     completed_dsf_ids = [dsf.id for dsf in completed_dsfs]
     selected_rows = {dsf.row_index for dsf in completed_dsfs}
@@ -101,8 +97,7 @@ def _prepare_controlled_workbook(import_session_id, assigned_user_id=None, statu
     ).filter(DSFValue.dsf_id.in_(completed_dsf_ids))
     values_query = values_query.join(DSF).join(ImportColumn).order_by(DSF.row_index, ImportColumn.column_index)
     font_cache = {}
-    # Une DSF non commencée n'a ni correction ni vérification : les cellules d'origine restent telles quelles.
-    for value in (values_query.yield_per(2000) if status == "completed" else ()):
+    for value in values_query.yield_per(2000):
         dsf = dsfs_by_id[value.dsf_id]
         column = columns[value.import_column_id]
         cell = worksheet.cell(row=dsf.row_index, column=column.column_index)
@@ -120,9 +115,6 @@ def _prepare_controlled_workbook(import_session_id, assigned_user_id=None, statu
         for other_sheet in list(workbook.worksheets):
             if other_sheet is not worksheet:
                 workbook.remove(other_sheet)
-
-    if status != "completed":
-        return workbook, import_session, len(completed_dsfs)
 
     journal = workbook.create_sheet(_journal_sheet_name(workbook))
     headers = [
@@ -178,19 +170,17 @@ def _prepare_controlled_workbook(import_session_id, assigned_user_id=None, statu
     return workbook, import_session, len(completed_dsfs)
 
 
-def export_controlled_workbook(import_session_id, assigned_user_id=None, username=None, status="completed"):
+def export_controlled_workbook(import_session_id, assigned_user_id=None, username=None):
     started = perf_counter()
     workbook, import_session, completed_count = _prepare_controlled_workbook(
         import_session_id,
         assigned_user_id=assigned_user_id,
-        status=status,
     )
     output_dir = Path(current_app.config["EXPORT_FOLDER"])
     output_dir.mkdir(parents=True, exist_ok=True)
     safe_stem = Path(import_session.filename).stem[:80] or "dsf"
     scope = f"_{username}" if username else ""
-    label = "dsf_controlees" if status == "completed" else "dsf_non_commencees"
-    output_path = output_dir / f"{safe_stem}_{label}{scope}_{uuid.uuid4().hex[:8]}.xlsx"
+    output_path = output_dir / f"{safe_stem}_dsf_controlees{scope}_{uuid.uuid4().hex[:8]}.xlsx"
     try:
         workbook.save(output_path)
     finally:
@@ -496,3 +486,73 @@ def export_all_completed_workbooks():
         perf_counter() - started,
     )
     return output_path, len(completed_by_session), total_dsfs
+
+
+def export_not_started_workbook(import_session_id):
+    """Exporte en flux les DSF non commencées d'un classeur (mémoire constante).
+
+    Les valeurs viennent de la base (identiques au fichier importé tant que la DSF
+    n'est pas commencée) : le classeur Excel d'origine n'est ni rouvert ni chargé.
+    """
+    started = perf_counter()
+    import_session = db.session.get(ImportSession, import_session_id)
+    if import_session is None:
+        raise ValueError("Session d'import introuvable.")
+    headers = [
+        variable_name
+        for variable_name, in db.session.query(ImportColumn.variable_name)
+        .filter(ImportColumn.import_session_id == import_session_id)
+        .order_by(ImportColumn.column_index)
+        .all()
+    ]
+    dsf_ids = [
+        dsf_id
+        for dsf_id, in db.session.query(DSF.id)
+        .filter(DSF.import_session_id == import_session_id, DSF.status == "not_started")
+        .order_by(DSF.row_index)
+        .all()
+    ]
+    if not dsf_ids or not headers:
+        raise ValueError("Aucune DSF non commencée n'est disponible pour l'export.")
+
+    output_dir = Path(current_app.config["EXPORT_FOLDER"])
+    output_dir.mkdir(parents=True, exist_ok=True)
+    safe_stem = Path(import_session.filename).stem[:80] or "dsf"
+    output_path = output_dir / f"{safe_stem}_dsf_non_commencees_{uuid.uuid4().hex[:8]}.xlsx"
+
+    workbook = Workbook(write_only=True)
+    try:
+        worksheet = workbook.create_sheet("DSF_NON_COMMENCEES")
+        _streaming_header(worksheet, headers)
+        worksheet.freeze_panes = "A2"
+        values_query = (
+            db.session.query(DSFValue.dsf_id, ImportColumn.column_index, DSFValue.original_value)
+            .join(DSF, DSF.id == DSFValue.dsf_id)
+            .join(ImportColumn, ImportColumn.id == DSFValue.import_column_id)
+            .filter(DSF.import_session_id == import_session_id, DSF.status == "not_started")
+            .order_by(DSF.row_index, ImportColumn.column_index)
+            .yield_per(5000)
+        )
+        current_dsf_id, row_values, exported = None, None, 0
+        for dsf_id, column_index, original in values_query:
+            if dsf_id != current_dsf_id:
+                if current_dsf_id is not None:
+                    worksheet.append(row_values)
+                    exported += 1
+                current_dsf_id, row_values = dsf_id, [None] * len(headers)
+            row_values[column_index - 1] = deserialize_value(original)
+        if current_dsf_id is not None:
+            worksheet.append(row_values)
+            exported += 1
+        if exported != len(dsf_ids):
+            raise ValueError(f"{len(dsf_ids)} DSF attendues, {exported} exportées.")
+        workbook.save(output_path)
+    finally:
+        workbook.close()
+    current_app.logger.info(
+        "Export des DSF non commencées du classeur %s : %s DSF, %.2f secondes",
+        import_session_id,
+        len(dsf_ids),
+        perf_counter() - started,
+    )
+    return output_path

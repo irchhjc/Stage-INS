@@ -1,6 +1,10 @@
 from flask import Blueprint, current_app, flash, redirect, request, send_file, url_for
 
-from app.services.export_service import export_all_completed_workbooks, export_controlled_workbook
+from app.services.export_service import (
+    export_all_completed_workbooks,
+    export_controlled_workbook,
+    export_not_started_workbook,
+)
 from app.services.auth_service import admin_required, current_user
 
 
@@ -36,7 +40,7 @@ def export_all_completed():
 @admin_required
 def export_not_started(import_session_id):
     try:
-        path = export_controlled_workbook(import_session_id, status="not_started")
+        path = export_not_started_workbook(import_session_id)
         return send_file(
             path,
             as_attachment=True,

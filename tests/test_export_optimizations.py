@@ -47,18 +47,22 @@ def test_shared_styles_preserve_source_fonts_without_correction_leak(client,impo
     book.close()
 
 
-def test_not_started_export_keeps_only_untouched_dsfs_without_journal(client, imported_session):
+def test_not_started_export_streams_only_untouched_dsfs_from_the_database(client, imported_session):
+    from app.services.export_service import export_not_started_workbook
+
     first, second = DSF.query.order_by(DSF.row_index).all()
     first.status = 'completed'
     db.session.commit()
+    headers = [c.variable_name for c in ImportColumn.query.filter_by(import_session_id=imported_session.id).order_by(ImportColumn.column_index)]
 
-    path = export_controlled_workbook(imported_session.id, status='not_started')
+    path = export_not_started_workbook(imported_session.id)
     book = load_workbook(path)
-    sheet = book[imported_session.sheet_name]
+    sheet = book['DSF_NON_COMMENCEES']
 
     assert 'dsf_non_commencees' in path.name
-    assert 'JOURNAL_CONTROLE' not in book.sheetnames
-    assert sheet.max_row == imported_session.header_row + 1
+    assert book.sheetnames == ['DSF_NON_COMMENCEES']
+    assert [cell.value for cell in sheet[1]] == headers
+    assert sheet.max_row == 2
     assert sheet.cell(2, 1).value == second.numero_dsf
     book.close()
 
