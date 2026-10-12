@@ -19,6 +19,8 @@ def upgrade_legacy_schema():
         return
     existing = {column["name"] for column in inspector.get_columns("dsfs")}
     statements = []
+    if "rccm" not in existing:
+        statements.append("ALTER TABLE dsfs ADD COLUMN rccm TEXT")
     if "assigned_to_id" not in existing:
         statements.append("ALTER TABLE dsfs ADD COLUMN assigned_to_id INTEGER REFERENCES users(id)")
     if "assigned_by_id" not in existing:

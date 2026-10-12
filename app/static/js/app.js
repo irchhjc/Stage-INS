@@ -487,6 +487,42 @@
     window.location.href = url.toString();
   });
 
+  // Registre du commerce (fiche Identification) : enregistrement explicite, avec retour visible.
+  const rccmCard = document.getElementById("rccmCard");
+  if (rccmCard) {
+    const input = document.getElementById("rccmInput");
+    const button = document.getElementById("rccmSave");
+    const status = document.getElementById("rccmStatus");
+    let saved = input.value;
+    const save = async () => {
+      button.disabled = true;
+      status.className = "small text-secondary";
+      status.textContent = "Enregistrement…";
+      try {
+        const payload = await apiFetch(`/dsf/api/${rccmCard.dataset.dsfId}/rccm`, {
+          method: "PATCH",
+          body: JSON.stringify({ value: input.value }),
+        });
+        input.value = payload.rccm;
+        saved = payload.rccm;
+        status.className = "small text-success";
+        status.textContent = payload.rccm ? "✓ Enregistré" : "✓ Champ effacé";
+      } catch (error) {
+        status.className = "small text-danger";
+        status.textContent = error.message;
+      } finally {
+        button.disabled = false;
+      }
+    };
+    button.addEventListener("click", save);
+    input.addEventListener("keydown", event => {
+      if (event.key === "Enter") { event.preventDefault(); save(); }
+    });
+    input.addEventListener("input", () => {
+      if (input.value !== saved) { status.className = "small text-secondary"; status.textContent = "Modifié, non enregistré"; }
+    });
+  }
+
   document.querySelectorAll("[data-tab-persist]").forEach(list => {
     const key = list.dataset.tabPersist;
     let stored = null;

@@ -34,7 +34,7 @@ def _rank(term_norm, term_compact, niu, numero, name, sigle):
 
 
 def rank_matching_ids(rows, term):
-    """``rows`` : (id, niu, numero_dsf, raison_sociale, sigle, texte_complémentaire).
+    """``rows`` : (id, niu, numero_dsf, raison_sociale, sigle, texte_complémentaire[, rccm]).
 
     Retourne les identifiants correspondants, meilleurs résultats d'abord.
     L'ordre d'origine des lignes est conservé à rang égal.
@@ -45,9 +45,10 @@ def rank_matching_ids(rows, term):
         return [row[0] for row in rows]
     term_compact = compact_text(term)
     ranked = []
-    for position, (dsf_id, niu, numero, name, sigle, extra) in enumerate(rows):
-        blob = " ".join(normalize_text(item) for item in (niu, numero, name, sigle, extra))
-        ids_compact = compact_text(niu) + " " + compact_text(numero)
+    for position, (dsf_id, niu, numero, name, sigle, extra, *rest) in enumerate(rows):
+        rccm = rest[0] if rest else None
+        blob = " ".join(normalize_text(item) for item in (niu, numero, name, sigle, extra, rccm))
+        ids_compact = compact_text(niu) + " " + compact_text(numero) + " " + compact_text(rccm)
         matched = all(
             token in blob or (len(compact_text(token)) >= 2 and compact_text(token) in ids_compact)
             for token in tokens

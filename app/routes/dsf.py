@@ -10,6 +10,7 @@ from app.services.dsf_service import (
     mark_fiche_not_provided,
     recompute_dsf_progress,
     reopen_fiche,
+    update_rccm,
     update_value,
     validate_all_fiches,
     validate_fiche,
@@ -88,6 +89,17 @@ def fiche_detail(dsf_id, fiche_code):
         previous_fiche=previous_fiche,
         next_fiche=next_fiche,
     )
+
+
+@dsf_bp.patch("/api/<int:dsf_id>/rccm")
+def api_update_rccm(dsf_id):
+    dsf = accessible_dsf_or_404(dsf_id)
+    payload = request.get_json(silent=True) or {}
+    try:
+        rccm = update_rccm(dsf, payload.get("value"), _operator(payload))
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 422
+    return jsonify(ok=True, rccm=rccm or "")
 
 
 @dsf_bp.patch("/api/values/<int:value_id>")

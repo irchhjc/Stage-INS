@@ -22,7 +22,7 @@
   <div class="dsf-header card panel-card mb-3">
     <div class="card-body p-3 p-lg-4">
       <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
-        <div><a class="small text-decoration-none" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">← Vue d'ensemble</a><h1 class="h3 mt-2 mb-1">{{ dsf.raison_sociale or 'Raison sociale non renseignée' }}</h1><p class="text-secondary mb-0">NIU {{ dsf.niu or '—' }} · N° {{ dsf.numero_dsf or '—' }} · {{ dsf.annee or '—' }} · Contrôleur : <strong>{{ dsf.assignee.display_label if dsf.assignee else 'non assigné' }}</strong></p></div>
+        <div><a class="small text-decoration-none" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">← Vue d'ensemble</a><h1 class="h3 mt-2 mb-1">{{ dsf.raison_sociale or 'Raison sociale non renseignée' }}</h1><p class="text-secondary mb-0">NIU {{ dsf.niu or '—' }} · N° {{ dsf.numero_dsf or '—' }}{% if dsf.rccm %} · RCCM {{ dsf.rccm }}{% endif %} · {{ dsf.annee or '—' }} · Contrôleur : <strong>{{ dsf.assignee.display_label if dsf.assignee else 'non assigné' }}</strong></p></div>
         <div class="text-end"><div id="ficheStatusBadge">{{ status_badge(fiche.status) }}</div><div class="small text-secondary mt-2"><span id="completedCount">{{ completed }}</span> / {{ total }} fiches — <span id="dsfProgressText">{{ dsf.progress_percent }}</span> %</div></div>
       </div>
       <div class="progress mt-3"><div id="dsfProgressBar" class="progress-bar bg-success" style="width:{{ dsf.progress_percent }}%"></div></div>
@@ -64,6 +64,22 @@
       {% endfor %}
 
       <div class="legend-line mb-3"><span><i class="legend-dot dot-black"></i> Non vérifiée</span><span><i class="legend-dot dot-green"></i> Vérifiée</span><span><i class="legend-dot dot-corrected"></i> Corrigée</span><span><i class="legend-dot dot-red"></i> Anomalie</span><span><i class="legend-dot dot-gray"></i> Non applicable</span></div>
+
+      {% if fiche.fiche_code == 'IDENT' %}
+      <div class="panel-card rccm-card mb-3" id="rccmCard" data-dsf-id="{{ dsf.id }}">
+        <div class="card-body p-3 p-lg-4">
+          <div class="d-flex flex-wrap align-items-end gap-3">
+            <div class="flex-grow-1" style="min-width:16rem">
+              <label class="form-label fw-semibold mb-1" for="rccmInput">Registre du commerce (RCCM)</label>
+              <input id="rccmInput" class="form-control" type="text" maxlength="60" value="{{ dsf.rccm or '' }}" placeholder="Ex. CG-BZV-01-2020-B12-00345" autocomplete="off" spellcheck="false" aria-describedby="rccmHelp">
+            </div>
+            <button id="rccmSave" class="btn btn-primary" type="button">Enregistrer</button>
+            <span id="rccmStatus" class="small text-secondary" role="status" aria-live="polite"></span>
+          </div>
+          <p id="rccmHelp" class="small text-secondary mt-2 mb-0">Information saisie dans l'application (absente du fichier importé). Elle est enregistrée dans le journal d'audit et reprise dans les exports.</p>
+        </div>
+      </div>
+      {% endif %}
 
       {% for section in sections %}
       <div id="section-{{ section.number }}">

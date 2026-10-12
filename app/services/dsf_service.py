@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import func, or_
@@ -97,6 +98,44 @@ def update_value(dsf_value, raw_value, status, operator, comment=None):
     recompute_dsf_progress(dsf_value.dsf)
     db.session.commit()
     return changed_now
+
+
+RCCM_PATTERN = re.compile(r"^[A-Z0-9 ./_-]{1,60}$")
+
+
+def clean_rccm(raw_value):
+    """Normalise le numéro de registre du commerce ; vide = effacer. Lève ValueError si invalide."""
+    value = re.sub(r"\s+", " ", str(raw_value or "")).strip().upper()
+    if not value:
+        return None
+    if not RCCM_PATTERN.match(value):
+        raise ValueError(
+            "Registre du commerce invalide : 60 caractères maximum, lettres, chiffres, espaces et / - . _ uniquement."
+        )
+    return value
+
+
+def update_rccm(dsf, raw_value, operator):
+    """Enregistre le registre du commerce de la DSF et trace la modification."""
+    operator = clean_operator(operator)
+    new_value = clean_rccm(raw_value)
+    old_value = dsf.rccm
+    if new_value == old_value:
+        return new_value
+    dsf.rccm = new_value
+    db.session.add(
+        AuditLog(
+            dsf_id=dsf.id,
+            fiche_code="IDENT",
+            variable_name="Registre du commerce (RCCM)",
+            old_value=old_value,
+            new_value=new_value,
+            action="modification RCCM",
+            operator=operator,
+        )
+    )
+    db.session.commit()
+    return new_value
 
 
 def validate_fiche(
@@ -266,8 +305,8 @@ def search_dsfs(term, status=None, import_session_id=None, assigned_to_id=None, 
         query = query.filter_by(status=status)
     if term and term.strip():
         rows = [
-            (row.id, row.niu, row.numero_dsf, row.raison_sociale, row.sigle, "")
-            for row in query.with_entities(DSF.id, DSF.niu, DSF.numero_dsf, DSF.raison_sociale, DSF.sigle)
+            (row.id, row.niu, row.numero_dsf, row.raison_sociale, row.sigle, "", row.rccm)
+            for row in query.with_entities(DSF.id, DSF.niu, DSF.numero_dsf, DSF.raison_sociale, DSF.sigle, DSF.rccm)
             .order_by(DSF.raison_sociale, DSF.annee.desc())
             .all()
         ]

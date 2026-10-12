@@ -26,7 +26,7 @@
       <thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Sigle</th><th>Année</th><th>Progression</th><th>Statut</th>{% if current_user.is_admin %}<th>Contrôleur</th>{% endif %}<th>Anomalies</th><th></th></tr></thead>
       <tbody id="dsfRows">
       {% for dsf in dsfs %}
-        <tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.sigle or '')|lower }}{% if current_user.is_admin and dsf.assignee %} {{ dsf.assignee.display_label|lower }}{% endif %}">
+        <tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.sigle or '')|lower }} {{ (dsf.rccm or '')|lower }}{% if current_user.is_admin and dsf.assignee %} {{ dsf.assignee.display_label|lower }}{% endif %}">
           <td class="fw-semibold">{{ dsf.niu or '—' }}</td>
           <td>{{ dsf.numero_dsf or '—' }}</td>
           <td><span class="company-name">{{ dsf.raison_sociale or 'Sans raison sociale' }}</span>{% if all_sessions %}<small class="d-block text-secondary">{{ dsf.import_session.filename }}</small>{% endif %}</td>

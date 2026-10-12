@@ -253,7 +253,7 @@ def global_search():
     elif assignment == "unassigned":
         query = query.filter(DSF.assigned_to_id.is_(None))
     rows = query.with_entities(
-        DSF.id, DSF.niu, DSF.numero_dsf, DSF.raison_sociale, DSF.sigle,
+        DSF.id, DSF.niu, DSF.numero_dsf, DSF.raison_sociale, DSF.sigle, DSF.rccm,
         ImportSession.filename, User.username, User.full_name,
     ).order_by(DSF.raison_sociale, DSF.id).all()
     ids = rank_matching_ids(
@@ -263,6 +263,7 @@ def global_search():
                 " ".join(filter(None, (
                     activity.get(row.id, {}).get("label"), row.filename, row.username, row.full_name,
                 ))),
+                row.rccm,
             )
             for row in rows
         ],

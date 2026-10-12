@@ -61,7 +61,7 @@ def test_not_started_export_streams_only_untouched_dsfs_from_the_database(client
 
     assert 'dsf_non_commencees' in path.name
     assert book.sheetnames == ['DSF_NON_COMMENCEES']
-    assert [cell.value for cell in sheet[1]] == headers
+    assert [cell.value for cell in sheet[1]] == headers + ["RCCM (saisi dans l'application)"]
     assert sheet.max_row == 2
     assert sheet.cell(2, 1).value == second.numero_dsf
     book.close()

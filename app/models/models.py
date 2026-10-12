@@ -107,6 +107,7 @@ class DSF(db.Model):
     raison_sociale = db.Column(db.Text, index=True)
     sigle = db.Column(db.Text, index=True)
     annee = db.Column(db.Text, index=True)
+    rccm = db.Column(db.Text)  # Registre du commerce : saisi dans l'application, absent du fichier source
     status = db.Column(db.String(24), nullable=False, default="not_started", index=True)
     progress = db.Column(db.Float, nullable=False, default=0.0)
     anomaly_count = db.Column(db.Integer, nullable=False, default=0)

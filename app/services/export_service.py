@@ -22,6 +22,7 @@ COLORS = {
     "not_applicable": "FF666666",
 }
 CORRECTED_FILL = PatternFill(fill_type="solid", fgColor="FFE2F0D9")
+RCCM_HEADER = "RCCM (saisi dans l'application)"
 
 
 def _apply_font_color(cell, color, cache):
@@ -110,6 +111,15 @@ def _prepare_controlled_workbook(import_session_id, assigned_user_id=None):
             cell.fill = CORRECTED_FILL
 
     _retain_rows(worksheet, import_session.header_row, selected_rows)
+
+    # Registre du commerce saisi dans l'application : colonne ajoutée à droite de la feuille.
+    rccm_column = worksheet.max_column + 1
+    header_cell = worksheet.cell(row=import_session.header_row, column=rccm_column, value=RCCM_HEADER)
+    previous_header = worksheet.cell(row=import_session.header_row, column=rccm_column - 1)
+    if previous_header.has_style:
+        header_cell._style = copy(previous_header._style)
+    for offset, dsf in enumerate(completed_dsfs, start=1):
+        worksheet.cell(row=import_session.header_row + offset, column=rccm_column, value=dsf.rccm)
 
     if assigned_user_id is not None:
         for other_sheet in list(workbook.worksheets):
@@ -244,7 +254,7 @@ def _stream_schema_sheet(
 ):
     worksheet = workbook.create_sheet(title)
     headers = group["headers"]
-    _streaming_header(worksheet, headers)
+    _streaming_header(worksheet, (*headers, RCCM_HEADER))
     worksheet.freeze_panes = "A2"
 
     dsf_rows = (
@@ -256,6 +266,7 @@ def _stream_schema_sheet(
             DSF.numero_dsf,
             DSF.raison_sociale,
             DSF.annee,
+            DSF.rccm,
             DSF.assigned_to_id,
         )
         .filter(
@@ -268,8 +279,8 @@ def _stream_schema_sheet(
     metadata_by_id = {row.id: row for row in dsf_rows}
 
     def append_row(dsf_id, values, counts, output_row):
-        worksheet.append(values)
         metadata = metadata_by_id[dsf_id]
+        worksheet.append([*values, metadata.rccm])
         import_session = sessions_by_id[metadata.import_session_id]
         assignee = users_by_id.get(metadata.assigned_to_id)
         journal_rows.append(
@@ -523,8 +534,9 @@ def export_not_started_workbook(import_session_id):
     workbook = Workbook(write_only=True)
     try:
         worksheet = workbook.create_sheet("DSF_NON_COMMENCEES")
-        _streaming_header(worksheet, headers)
+        _streaming_header(worksheet, [*headers, RCCM_HEADER])
         worksheet.freeze_panes = "A2"
+        rccm_by_dsf = dict(db.session.query(DSF.id, DSF.rccm).filter(DSF.id.in_(dsf_ids)).all())
         values_query = (
             db.session.query(DSFValue.dsf_id, ImportColumn.column_index, DSFValue.original_value)
             .join(DSF, DSF.id == DSFValue.dsf_id)
@@ -537,12 +549,12 @@ def export_not_started_workbook(import_session_id):
         for dsf_id, column_index, original in values_query:
             if dsf_id != current_dsf_id:
                 if current_dsf_id is not None:
-                    worksheet.append(row_values)
+                    worksheet.append([*row_values, rccm_by_dsf.get(current_dsf_id)])
                     exported += 1
                 current_dsf_id, row_values = dsf_id, [None] * len(headers)
             row_values[column_index - 1] = deserialize_value(original)
         if current_dsf_id is not None:
-            worksheet.append(row_values)
+            worksheet.append([*row_values, rccm_by_dsf.get(current_dsf_id)])
             exported += 1
         if exported != len(dsf_ids):
             raise ValueError(f"{len(dsf_ids)} DSF attendues, {exported} exportées.")
