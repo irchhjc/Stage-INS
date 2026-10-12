@@ -18,6 +18,8 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="controller", index=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    # Périmètre de travail d'un contrôleur : une année (ex. "2023") ou None = toutes les années.
+    work_year = db.Column(db.String(10), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utcnow)
     last_login_at = db.Column(db.DateTime(timezone=True))
 

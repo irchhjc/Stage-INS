@@ -15,6 +15,9 @@ def upgrade_legacy_schema():
         if "full_name" not in user_columns:
             with db.engine.begin() as connection:
                 connection.execute(text("ALTER TABLE users ADD COLUMN full_name VARCHAR(150)"))
+        if "work_year" not in user_columns:
+            with db.engine.begin() as connection:
+                connection.execute(text("ALTER TABLE users ADD COLUMN work_year VARCHAR(10)"))
     if "dsfs" not in tables:
         return
     existing = {column["name"] for column in inspector.get_columns("dsfs")}

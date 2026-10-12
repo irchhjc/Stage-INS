@@ -178,7 +178,7 @@
       <div><strong>Affectation groupée du classeur</strong><small>Affecte uniquement les DSF encore libres ; les affectations existantes restent verrouillées.</small></div>
       <form class="bulk-assignment-form d-flex gap-2 flex-wrap" method="post" action="{{ url_for('admin.assign_all_dsfs', import_session_id=active_session.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <select name="user_id" class="form-select" required><option value="" selected disabled>Choisir un contrôleur…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select>
+        <select name="user_id" class="form-select" required><option value="" selected disabled>Choisir un contrôleur…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}{% if controller.work_year %} · {{ controller.work_year }}{% endif %}</option>{% endfor %}</select>
         <button class="btn btn-success" type="submit">Affecter toutes les DSF libres</button>
       </form>
     </div>
@@ -196,7 +196,7 @@
       <form method="post" class="d-flex gap-2 flex-wrap mb-3" action="{{ url_for('admin.assign_branch', import_session_id=active_session.id) }}">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="branch" value="{{ branch }}">
         <label class="visually-hidden" for="branchController">Contrôleur</label>
-        <select id="branchController" name="user_id" class="form-select" required><option value="" disabled selected>Choisir un contrôleur</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select>
+        <select id="branchController" name="user_id" class="form-select" required><option value="" disabled selected>Choisir un contrôleur</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}{% if controller.work_year %} · {{ controller.work_year }}{% endif %}</option>{% endfor %}</select>
         <button class="btn btn-primary" {{ 'disabled' if item.free == 0 else '' }}>Affecter les {{ item.free }} DSF libres de cette sous-branche</button>
       </form>{% endfor %}{% endif %}
       <p class="small text-secondary">Le code et le libellé des colonnes Sous-Branche sont regroupés. Les données manquantes restent dans « Sous-branche non renseignée ».</p>
@@ -207,7 +207,7 @@
   <div class="table-responsive"><table class="table table-hover align-middle mb-0"><thead><tr><th>NIU</th><th>N° DSF</th><th>Entreprise</th><th>Année</th><th>Sous-branche</th><th>Progression</th><th>Statut</th><th>Contrôleur</th><th></th></tr></thead><tbody id="adminDsfRows">
     {% for dsf in dsfs %}<tr data-search="{{ (dsf.niu or '')|lower }} {{ (dsf.numero_dsf or '')|lower }} {{ (dsf.raison_sociale or '')|lower }} {{ (dsf.assignee.display_label if dsf.assignee else '')|lower }}"><td class="fw-semibold">{{ dsf.niu or '—' }}</td><td>{{ dsf.numero_dsf or '—' }}</td><td>{{ dsf.raison_sociale or 'Sans raison sociale' }}</td><td>{{ dsf.annee or '—' }}</td><td>{{ activity[dsf.id].label }}</td><td>{{ dsf.progress_percent }}%</td><td>{{ status_badge(dsf.status) }}</td><td>
       {% if dsf.assignee %}<div class="assigned-lock"><span class="badge text-bg-success">✓ Affectée</span><strong>{{ dsf.assignee.display_label }}</strong><small>Affectation verrouillée</small></div>
-      {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
+      {% else %}<form class="d-flex gap-2" method="post" action="{{ url_for('admin.assign_dsf', dsf_id=dsf.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><select name="user_id" class="form-select form-select-sm assignment-select" required><option value="" selected disabled>Choisir…</option>{% for controller in controllers %}<option value="{{ controller.id }}">{{ controller.display_label }}{% if controller.work_year %} · {{ controller.work_year }}{% endif %}</option>{% endfor %}</select><button class="btn btn-sm btn-primary">Affecter</button></form>{% endif %}
     </td><td><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dsf.detail', dsf_id=dsf.id) }}">Voir</a></td></tr>
     {% else %}<tr><td colspan="8" class="text-center py-5 text-secondary">Aucune DSF importée.</td></tr>{% endfor %}
   </tbody></table></div>
@@ -215,6 +215,53 @@
   </div>
 
   <div class="tab-pane fade" id="pane-controllers" role="tabpanel" aria-labelledby="tab-controllers" tabindex="0">
+<section class="card panel-card mt-4" aria-labelledby="workScopeTitle">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div>
+        <h2 id="workScopeTitle" class="h5 mb-1">Périmètre de travail des contrôleurs</h2>
+        <p class="small text-secondary mb-0">Limitez un compte aux DSF d'une année, ou laissez-le sur toutes les années. Un contrôleur limité ne voit, ne prend en charge et ne se voit affecter que les DSF de son année ; ses DSF déjà affectées restent accessibles.</p>
+      </div>
+      <form class="d-flex gap-2 flex-wrap align-items-center" method="post" action="{{ url_for('admin.set_work_year_for_all') }}" onsubmit="return window.confirm('Appliquer ce périmètre à tous les contrôleurs actifs ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label class="visually-hidden" for="workYearAll">Périmètre pour tous les contrôleurs</label>
+        <select id="workYearAll" name="work_year" class="form-select" style="width:auto">
+          <option value="all">Toutes les années</option>
+          {% for item in year_stats %}<option value="{{ item.year }}">Année {{ item.year }}</option>{% endfor %}
+        </select>
+        <button class="btn btn-outline-primary" type="submit" {{ 'disabled' if not controllers else '' }}>Appliquer à tous</button>
+      </form>
+    </div>
+    {% if year_stats %}
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      {% for item in year_stats %}<span class="badge text-bg-light border fs-6 fw-semibold">{{ item.year }} · {{ item.total }} DSF · {{ item.free }} libres · {{ item.completed }} terminées</span>{% endfor %}
+    </div>
+    {% endif %}
+    <div class="table-responsive mt-3"><table class="table align-middle mb-0">
+      <thead><tr><th>Contrôleur</th><th>Périmètre actuel</th><th>Changer le périmètre</th></tr></thead>
+      <tbody>
+      {% for controller in controllers %}
+      <tr>
+        <td class="fw-semibold">{{ controller.display_label }}</td>
+        <td>{% if controller.work_year %}<span class="badge text-bg-primary">Année {{ controller.work_year }}</span>{% else %}<span class="badge text-bg-secondary">Toutes les années</span>{% endif %}</td>
+        <td>
+          <form class="d-flex gap-2" method="post" action="{{ url_for('admin.set_work_year', user_id=controller.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <label class="visually-hidden" for="workYear{{ controller.id }}">Périmètre de {{ controller.username }}</label>
+            <select id="workYear{{ controller.id }}" name="work_year" class="form-select" style="max-width:16rem">
+              <option value="all" {{ 'selected' if not controller.work_year else '' }}>Toutes les années</option>
+              {% for item in year_stats %}<option value="{{ item.year }}" {{ 'selected' if controller.work_year == item.year else '' }}>Année {{ item.year }}</option>{% endfor %}
+            </select>
+            <button class="btn btn-outline-primary" type="submit">Enregistrer</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}<tr><td colspan="3" class="text-center text-secondary py-3">Aucun contrôleur créé.</td></tr>{% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
 <div class="row g-4 mt-1">
   <div class="col-xl-4">
     <div class="card panel-card h-100"><div class="card-body p-4">

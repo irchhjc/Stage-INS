@@ -6,7 +6,7 @@
   <div>
     <p class="eyebrow">PILOTAGE</p>
     <h1>Tableau de bord</h1>
-    {% if sessions %}<p class="text-secondary mb-0">Tous les classeurs importés ({{ sessions|length }}) · {{ stats.total }} DSF</p>{% endif %}
+    {% if sessions %}<p class="text-secondary mb-0">Tous les classeurs importés ({{ sessions|length }}) · {{ stats.total }} DSF{% if work_scope %} · périmètre : <strong>{{ work_scope }}</strong>{% endif %}</p>{% endif %}
   </div>
   <div class="d-flex gap-2 flex-wrap justify-content-end">
     {% if current_user.is_admin %}

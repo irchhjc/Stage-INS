@@ -7,6 +7,7 @@ from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession
 from app.services.auth_service import current_user
 from app.services.dsf_service import dashboard_stats, search_dsfs, serialized_display
+from app.services.work_scope_service import dsf_in_scope, scope_label, scope_values
 
 
 main_bp = Blueprint("main", __name__)
@@ -53,10 +54,11 @@ def dashboard():
     active_session, session_ids = _scope(sessions, request.args.get("session_id"))
     term = request.args.get("q", "")
     status = request.args.get("status", "")
-    dsfs = search_dsfs(term, status, import_session_ids=session_ids) if sessions else []
+    years = scope_values(user)  # périmètre de travail du contrôleur (None = toutes les années)
+    dsfs = search_dsfs(term, status, import_session_ids=session_ids, annee_values=years) if sessions else []
     # Compteurs et progression : toujours tous les classeurs importés, quel que soit le filtre du tableau.
-    stats = dashboard_stats(import_session_ids=[item.id for item in sessions]) if sessions else dashboard_stats(-1)
-    selected_stats = dashboard_stats(import_session_ids=session_ids) if active_session is not None else None
+    stats = dashboard_stats(import_session_ids=[item.id for item in sessions], annee_values=years) if sessions else dashboard_stats(-1)
+    selected_stats = dashboard_stats(import_session_ids=session_ids, annee_values=years) if active_session is not None else None
     export_completed_count = 0
     if active_session is not None:
         export_completed_count = selected_stats["completed"] if user.is_admin else DSF.query.filter_by(
@@ -70,6 +72,7 @@ def dashboard():
         dsfs=dsfs,
         stats=stats,
         selected_stats=selected_stats,
+        work_scope=scope_label(user) if user.work_year else None,
         term=term,
         selected_status=status,
         list_mode="all",
@@ -80,13 +83,15 @@ def dashboard():
 
 @main_bp.get("/dsfs")
 def dsf_list():
+    user = current_user()
     sessions = _accessible_sessions()
     active_session, session_ids = _scope(sessions, request.args.get("session_id"))
     term = request.args.get("q", "")
     status = request.args.get("status", "")
-    dsfs = search_dsfs(term, status, import_session_ids=session_ids) if sessions else []
+    dsfs = search_dsfs(term, status, import_session_ids=session_ids, annee_values=scope_values(user)) if sessions else []
     return render_template(
         "dsf_list.html",
+        work_scope=scope_label(user) if user.work_year else None,
         dsfs=dsfs,
         term=term,
         selected_status=status,
@@ -128,6 +133,14 @@ def claim_dsf(dsf_id):
     user = current_user()
     if user.is_admin:
         return redirect(url_for("dsf.detail", dsf_id=dsf_id))
+
+    target = db.get_or_404(DSF, dsf_id)
+    if not dsf_in_scope(target, user):
+        flash(
+            f"Cette DSF est de l'année {target.annee or '—'} : votre compte est limité à l'{scope_label(user)}.",
+            "warning",
+        )
+        return redirect(url_for("main.dsf_list"))
 
     now = datetime.now(timezone.utc)
     claimed_id = db.session.execute(

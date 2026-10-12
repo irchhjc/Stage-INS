@@ -55,7 +55,7 @@ def test_legacy_upgrade_is_additive_and_idempotent():
         c.execute(text("INSERT INTO users VALUES (1,'ancien','hash-existing')"))
     with patch('app.services.database_service.db',SimpleNamespace(engine=engine)):
         upgrade_legacy_schema();upgrade_legacy_schema()
-    assert 'full_name' in {c['name'] for c in inspect(engine).get_columns('users')}
+    assert {'full_name','work_year'} <= {c['name'] for c in inspect(engine).get_columns('users')}
     with engine.connect() as c:
-        assert c.execute(text('SELECT * FROM users')).one()==(1,'ancien','hash-existing',None)
+        assert c.execute(text('SELECT * FROM users')).one()==(1,'ancien','hash-existing',None,None)
     engine.dispose()

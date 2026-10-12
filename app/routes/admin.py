@@ -3,12 +3,18 @@ from datetime import datetime, timezone
 from sqlalchemy import update, or_
 from sqlalchemy.orm import joinedload
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
 
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
 from app.services.admin_dashboard_service import build_admin_performance, build_controller_daily_stats, resolve_period
 from app.services.control_quality_service import build_control_quality
+from app.services.work_scope_service import (
+    dsf_in_scope,
+    normalize_requested_year,
+    raw_values_for_year,
+    year_stats,
+)
 from app.services.auth_service import admin_required, login_required, create_user, current_user, normalize_full_name
 from app.services.dsf_service import search_dsfs
 from app.services.activity_service import activity_groups
@@ -81,6 +87,7 @@ def dashboard():
         activity=activity, branches=branches, branch=branch, not_started_count=not_started_count,
         account_users=User.query.order_by(User.username).all(),
         controllers=controllers,
+        year_stats=year_stats(),
         controller_progress=_controller_progress(controllers),
         controller_daily=controller_daily,
         sessions=sessions,
@@ -120,6 +127,42 @@ def create_controller():
     return redirect(url_for("admin.dashboard"))
 
 
+@admin_bp.post("/users/<int:user_id>/work-year")
+@admin_required
+def set_work_year(user_id):
+    controller = db.get_or_404(User, user_id)
+    if controller.role != "controller":
+        abort(400)
+    try:
+        controller.work_year = normalize_requested_year(request.form.get("work_year"))
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("admin.dashboard") + "#pane-controllers")
+    db.session.commit()
+    current_app.logger.info("Périmètre de %s : %s (par %s)", controller.username, controller.work_year or "toutes les années", current_user().username)
+    scope = f"l'année {controller.work_year}" if controller.work_year else "toutes les années"
+    flash(f"{controller.display_label} travaille désormais sur {scope}.", "success")
+    return redirect(url_for("admin.dashboard") + "#pane-controllers")
+
+
+@admin_bp.post("/controllers/work-year")
+@admin_required
+def set_work_year_for_all():
+    try:
+        year = normalize_requested_year(request.form.get("work_year"))
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return redirect(url_for("admin.dashboard") + "#pane-controllers")
+    controllers = User.query.filter_by(role="controller", is_active=True).all()
+    for controller in controllers:
+        controller.work_year = year
+    db.session.commit()
+    current_app.logger.info("Périmètre de %s contrôleur(s) : %s (par %s)", len(controllers), year or "toutes les années", current_user().username)
+    scope = f"l'année {year}" if year else "toutes les années"
+    flash(f"{len(controllers)} contrôleur(s) travaillent désormais sur {scope}.", "success")
+    return redirect(url_for("admin.dashboard") + "#pane-controllers")
+
+
 @admin_bp.post("/dsfs/<int:dsf_id>/assign")
 @admin_required
 def assign_dsf(dsf_id):
@@ -135,6 +178,14 @@ def assign_dsf(dsf_id):
     if assignee is None or assignee.role != "controller" or not assignee.is_active:
         flash("Le contrôleur sélectionné est invalide.", "danger")
         return redirect(request.referrer or url_for("admin.dashboard"))
+
+    if not dsf_in_scope(dsf, assignee):
+        flash(
+            f"{assignee.display_label} est limité à l'année {assignee.work_year} : cette DSF est de l'année {dsf.annee or '—'}. "
+            "Modifiez son périmètre de travail (onglet Contrôleurs) pour la lui affecter.",
+            "warning",
+        )
+        return redirect(request.referrer or url_for("admin.dashboard", session_id=dsf.import_session_id))
 
     dsf.assignee = assignee
     dsf.assigned_by = current_user()
@@ -164,8 +215,10 @@ def assign_all_dsfs(import_session_id):
         return redirect(url_for("admin.dashboard", session_id=import_session.id))
 
     dsfs = DSF.query.filter_by(import_session_id=import_session.id).order_by(DSF.id).all()
-    unassigned = [dsf for dsf in dsfs if dsf.assigned_to_id is None]
-    already_assigned = len(dsfs) - len(unassigned)
+    free = [dsf for dsf in dsfs if dsf.assigned_to_id is None]
+    unassigned = [dsf for dsf in free if dsf_in_scope(dsf, assignee)]
+    out_of_scope = len(free) - len(unassigned)
+    already_assigned = len(dsfs) - len(free)
     now = datetime.now(timezone.utc)
     administrator = current_user()
     for dsf in unassigned:
@@ -187,7 +240,14 @@ def assign_all_dsfs(import_session_id):
         message = f"{len(unassigned)} DSF affectée(s) à {assignee.username}."
         if already_assigned:
             message += f" {already_assigned} DSF déjà affectée(s) ont été conservées sans modification."
+        if out_of_scope:
+            message += f" {out_of_scope} DSF libre(s) d'une autre année n'ont pas été affectées (périmètre : année {assignee.work_year})."
         flash(message, "success")
+    elif out_of_scope:
+        flash(
+            f"Aucune DSF libre de l'année {assignee.work_year} dans ce classeur : {out_of_scope} DSF libre(s) d'autres années ont été ignorées.",
+            "warning",
+        )
     else:
         flash("Toutes les DSF de ce classeur étaient déjà affectées. Aucune modification effectuée.", "warning")
     return redirect(url_for("admin.dashboard", session_id=import_session.id))
@@ -309,10 +369,13 @@ def assign_branch(import_session_id):
         abort(400)
     administrator = current_user()
     try:
-        ids = db.session.execute(update(DSF).where(
+        conditions = [
             DSF.import_session_id == import_session_id,
             DSF.id.in_(selected["ids"]), DSF.assigned_to_id.is_(None),
-        ).values(assigned_to_id=assignee.id, assigned_by_id=administrator.id,
+        ]
+        if assignee.work_year:
+            conditions.append(DSF.annee.in_(raw_values_for_year(assignee.work_year)))
+        ids = db.session.execute(update(DSF).where(*conditions).values(assigned_to_id=assignee.id, assigned_by_id=administrator.id,
                  assigned_at=datetime.now(timezone.utc)).returning(DSF.id)).scalars().all()
         for dsf_id in ids:
             db.session.add(AuditLog(dsf_id=dsf_id, action="affectation par sous-branche",

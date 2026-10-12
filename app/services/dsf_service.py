@@ -266,8 +266,10 @@ def reopen_fiche(dsf, fiche_code, operator):
     db.session.commit()
 
 
-def dashboard_stats(import_session_id=None, assigned_to_id=None, import_session_ids=None):
+def dashboard_stats(import_session_id=None, assigned_to_id=None, import_session_ids=None, annee_values=None):
     query = DSF.query
+    if annee_values is not None:
+        query = query.filter(DSF.annee.in_(annee_values))
     if import_session_ids is not None:
         query = query.filter(DSF.import_session_id.in_(import_session_ids))
     elif import_session_id:
@@ -289,8 +291,10 @@ def dashboard_stats(import_session_id=None, assigned_to_id=None, import_session_
     }
 
 
-def search_dsfs(term, status=None, import_session_id=None, assigned_to_id=None, statuses=None, import_session_ids=None):
+def search_dsfs(term, status=None, import_session_id=None, assigned_to_id=None, statuses=None, import_session_ids=None, annee_values=None):
     query = DSF.query
+    if annee_values is not None:
+        query = query.filter(DSF.annee.in_(annee_values))
     if import_session_ids is not None:
         query = query.filter(DSF.import_session_id.in_(import_session_ids))
     elif import_session_id:

@@ -2,7 +2,7 @@
 {% block title %}{{ 'Mes DSF' if list_mode == 'mine' else 'Toutes les DSF' }} — Contrôle DSF{% endblock %}
 {% block content %}
 <div class="page-heading">
-  <div><p class="eyebrow">DOSSIERS</p><h1>{{ 'Mes DSF' if list_mode == 'mine' else 'Toutes les DSF' }}</h1></div>
+  <div><p class="eyebrow">DOSSIERS</p><h1>{{ 'Mes DSF' if list_mode == 'mine' else 'Toutes les DSF' }}</h1>{% if work_scope and list_mode != 'mine' %}<p class="text-secondary mb-0">Votre périmètre de travail : <strong>{{ work_scope }}</strong></p>{% endif %}</div>
 </div>
 {% if sessions %}{% include 'dsf_table.html' %}{% else %}<div class="empty-state"><p>{{ 'Vous n’avez encore aucune DSF en cours ou terminée.' if list_mode == 'mine' else 'Aucun classeur importé.' }}</p></div>{% endif %}
 {% endblock %}
