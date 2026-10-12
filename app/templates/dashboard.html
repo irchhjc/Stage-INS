@@ -61,6 +61,8 @@
   </div>
 </div>
 
+{% with detailed = false %}{% include '_year_progress.html' %}{% endwith %}
+
 {% include 'dsf_table.html' %}
 {% endif %}
 {% endblock %}

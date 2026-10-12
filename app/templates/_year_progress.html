@@ -1,0 +1,60 @@
+{# Suivi de progression par année. Paramètres : year_progress, detailed (bool). #}
+<section class="card panel-card mt-4" aria-labelledby="yearProgressTitle">
+  <div class="card-body p-4">
+    <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+      <div>
+        <p class="eyebrow mb-1">SUIVI PAR ANNÉE</p>
+        <h2 id="yearProgressTitle" class="h4 mb-1">Progression du contrôle par année</h2>
+        <p class="small text-secondary mb-0">Année de la DSF telle qu'importée · {{ year_progress.totals.completed }} DSF terminées sur {{ year_progress.totals.total }} ({{ year_progress.totals.completion_rate }} %){% if detailed %} · rythme calculé sur les 14 derniers jours{% endif %}.</p>
+      </div>
+    </div>
+    {% if year_progress.years %}
+    <div class="table-responsive mt-3">
+      <table class="table align-middle year-progress-table mb-0">
+        <thead><tr>
+          <th>Année</th><th>DSF</th><th>Non commencées</th><th>En cours</th><th>Terminées</th>
+          <th style="min-width:15rem">Progression</th><th>Anomalies</th>
+          {% if detailed %}<th>Affectées / libres</th><th title="DSF terminées par jour sur les 14 derniers jours">Rythme</th><th title="Date à laquelle toutes les DSF seraient terminées au rythme actuel">Fin estimée</th>{% endif %}
+        </tr></thead>
+        <tbody>
+        {% for row in year_progress.years %}
+        <tr>
+          <td class="fw-bold fs-5">{{ row.year }}{% if row.finished %} <span class="badge text-bg-success align-middle">Terminée</span>{% endif %}</td>
+          <td>{{ row.total }}</td>
+          <td class="text-secondary">{{ row.not_started }}</td>
+          <td>{{ row.in_progress }}</td>
+          <td><strong>{{ row.completed }}</strong></td>
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress flex-grow-1" style="height:14px" role="progressbar" aria-label="DSF terminées {{ row.year }}" aria-valuenow="{{ row.completion_rate }}" aria-valuemin="0" aria-valuemax="100"><div class="progress-bar bg-success" style="width:{{ row.completion_rate }}%"></div></div>
+              <strong style="min-width:3.2rem;text-align:right">{{ row.completion_rate }} %</strong>
+            </div>
+            <small class="text-secondary">avancement moyen des fiches : {{ row.average_progress }} %</small>
+          </td>
+          <td>{% if row.with_anomalies %}<span class="badge text-bg-danger">{{ row.with_anomalies }}</span>{% else %}<span class="text-secondary">0</span>{% endif %}</td>
+          {% if detailed %}
+          <td>{{ row.assigned }} / {{ row.free }}</td>
+          <td>{% if row.pace_per_day %}{{ row.pace_per_day }} / jour<small class="d-block text-secondary">{{ row.completed_recent }} sur 7 jours</small>{% else %}<span class="text-secondary">—</span>{% endif %}</td>
+          <td>{% if row.finished %}<span class="text-success fw-semibold">Terminée</span>{% elif row.eta_date %}{{ row.eta_date.strftime('%d/%m/%Y') }}<small class="d-block text-secondary">dans {{ row.eta_days }} j · reste {{ row.remaining }} DSF</small>{% else %}<span class="text-secondary" title="Aucune DSF terminée sur les 14 derniers jours">Rythme nul</span><small class="d-block text-secondary">reste {{ row.remaining }} DSF</small>{% endif %}</td>
+          {% endif %}
+        </tr>
+        {% if detailed and row.controllers %}
+        <tr class="year-detail-row"><td></td><td colspan="9">
+          <details>
+            <summary class="small text-secondary">Répartition par contrôleur ({{ row.controllers|length }})</summary>
+            <table class="table table-sm mb-2 mt-2" style="max-width:46rem">
+              <thead><tr><th>Contrôleur</th><th>Affectées</th><th>En cours</th><th>Terminées</th><th>Taux</th></tr></thead>
+              <tbody>{% for c in row.controllers %}<tr><td>{{ c.name }}</td><td>{{ c.assigned }}</td><td>{{ c.in_progress }}</td><td>{{ c.completed }}</td><td>{{ c.rate }} %</td></tr>{% endfor %}</tbody>
+            </table>
+          </details>
+        </td></tr>
+        {% endif %}
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-center text-secondary py-4 mb-0">Aucune DSF importée.</p>
+    {% endif %}
+  </div>
+</section>

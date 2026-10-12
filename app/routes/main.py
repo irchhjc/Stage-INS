@@ -7,6 +7,7 @@ from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession
 from app.services.auth_service import current_user
 from app.services.dsf_service import dashboard_stats, search_dsfs, serialized_display
+from app.services.year_progress_service import build_year_progress
 from app.services.work_scope_service import dsf_in_scope, scope_label, scope_values, sessions_in_scope
 
 
@@ -75,6 +76,7 @@ def dashboard():
         stats=stats,
         selected_stats=selected_stats,
         work_scope=scope_label(user) if user.work_year else None,
+        year_progress=build_year_progress(only_year=user.work_year if not user.is_admin and user.work_year else None, with_controllers=False),
         term=term,
         selected_status=status,
         list_mode="all",

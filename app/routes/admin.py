@@ -9,6 +9,7 @@ from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession, User
 from app.services.admin_dashboard_service import build_admin_performance, build_controller_daily_stats, resolve_period
 from app.services.control_quality_service import build_control_quality
+from app.services.year_progress_service import build_year_progress
 from app.services.work_scope_service import (
     dsf_in_scope,
     normalize_requested_year,
@@ -89,6 +90,7 @@ def dashboard():
         account_users=User.query.order_by(User.username).all(),
         controllers=controllers,
         year_stats=year_stats(),
+        year_progress=build_year_progress(),
         controller_progress=_controller_progress(controllers),
         controller_daily=controller_daily,
         sessions=sessions,
