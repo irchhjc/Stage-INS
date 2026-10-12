@@ -95,10 +95,7 @@ def fiche_detail(dsf_id, fiche_code):
 def api_update_rccm(dsf_id):
     dsf = accessible_dsf_or_404(dsf_id)
     payload = request.get_json(silent=True) or {}
-    try:
-        rccm = update_rccm(dsf, payload.get("value"), _operator(payload))
-    except ValueError as exc:
-        return jsonify(ok=False, error=str(exc)), 422
+    rccm = update_rccm(dsf, payload.get("value"), _operator(payload))
     return jsonify(ok=True, rccm=rccm or "")
 
 

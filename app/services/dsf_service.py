@@ -100,19 +100,14 @@ def update_value(dsf_value, raw_value, status, operator, comment=None):
     return changed_now
 
 
-RCCM_PATTERN = re.compile(r"^[A-Z0-9 ./_-]{1,60}$")
+# Seuls les caractères de contrôle que PostgreSQL et Excel ne peuvent pas stocker sont retirés (ex. NUL).
+_UNSTORABLE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
 def clean_rccm(raw_value):
-    """Normalise le numéro de registre du commerce ; vide = effacer. Lève ValueError si invalide."""
-    value = re.sub(r"\s+", " ", str(raw_value or "")).strip().upper()
-    if not value:
-        return None
-    if not RCCM_PATTERN.match(value):
-        raise ValueError(
-            "Registre du commerce invalide : 60 caractères maximum, lettres, chiffres, espaces et / - . _ uniquement."
-        )
-    return value
+    """Registre du commerce : saisie libre (aucune contrainte de format ni de longueur) ; vide = effacer."""
+    value = _UNSTORABLE.sub("", str(raw_value if raw_value is not None else "")).strip()
+    return value or None
 
 
 def update_rccm(dsf, raw_value, operator):

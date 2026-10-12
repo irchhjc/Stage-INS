@@ -71,12 +71,12 @@
           <div class="d-flex flex-wrap align-items-end gap-3">
             <div class="flex-grow-1" style="min-width:16rem">
               <label class="form-label fw-semibold mb-1" for="rccmInput">Registre du commerce (RCCM)</label>
-              <input id="rccmInput" class="form-control" type="text" maxlength="60" value="{{ dsf.rccm or '' }}" placeholder="Ex. CG-BZV-01-2020-B12-00345" autocomplete="off" spellcheck="false" aria-describedby="rccmHelp">
+              <input id="rccmInput" class="form-control" type="text" value="{{ dsf.rccm or '' }}" placeholder="Saisie libre, ex. CG-BZV-01-2020-B12-00345" autocomplete="off" spellcheck="false" aria-describedby="rccmHelp">
             </div>
             <button id="rccmSave" class="btn btn-primary" type="button">Enregistrer</button>
             <span id="rccmStatus" class="small text-secondary" role="status" aria-live="polite"></span>
           </div>
-          <p id="rccmHelp" class="small text-secondary mt-2 mb-0">Information saisie dans l'application (absente du fichier importé). Elle est enregistrée dans le journal d'audit et reprise dans les exports.</p>
+          <p id="rccmHelp" class="small text-secondary mt-2 mb-0">Saisie libre : tout texte est accepté, sans limite de longueur. Information saisie dans l'application (absente du fichier importé), enregistrée dans le journal d'audit et reprise dans les exports.</p>
         </div>
       </div>
       {% endif %}

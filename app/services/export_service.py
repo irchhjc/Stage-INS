@@ -23,6 +23,11 @@ COLORS = {
 }
 CORRECTED_FILL = PatternFill(fill_type="solid", fgColor="FFE2F0D9")
 RCCM_HEADER = "RCCM (saisi dans l'application)"
+EXCEL_CELL_LIMIT = 32767  # longueur maximale d'une cellule Excel
+
+
+def _rccm_cell(value):
+    return value[:EXCEL_CELL_LIMIT] if value else value
 
 
 def _apply_font_color(cell, color, cache):
@@ -119,7 +124,7 @@ def _prepare_controlled_workbook(import_session_id, assigned_user_id=None):
     if previous_header.has_style:
         header_cell._style = copy(previous_header._style)
     for offset, dsf in enumerate(completed_dsfs, start=1):
-        worksheet.cell(row=import_session.header_row + offset, column=rccm_column, value=dsf.rccm)
+        worksheet.cell(row=import_session.header_row + offset, column=rccm_column, value=_rccm_cell(dsf.rccm))
 
     if assigned_user_id is not None:
         for other_sheet in list(workbook.worksheets):
@@ -280,7 +285,7 @@ def _stream_schema_sheet(
 
     def append_row(dsf_id, values, counts, output_row):
         metadata = metadata_by_id[dsf_id]
-        worksheet.append([*values, metadata.rccm])
+        worksheet.append([*values, _rccm_cell(metadata.rccm)])
         import_session = sessions_by_id[metadata.import_session_id]
         assignee = users_by_id.get(metadata.assigned_to_id)
         journal_rows.append(
@@ -549,12 +554,12 @@ def export_not_started_workbook(import_session_id):
         for dsf_id, column_index, original in values_query:
             if dsf_id != current_dsf_id:
                 if current_dsf_id is not None:
-                    worksheet.append([*row_values, rccm_by_dsf.get(current_dsf_id)])
+                    worksheet.append([*row_values, _rccm_cell(rccm_by_dsf.get(current_dsf_id))])
                     exported += 1
                 current_dsf_id, row_values = dsf_id, [None] * len(headers)
             row_values[column_index - 1] = deserialize_value(original)
         if current_dsf_id is not None:
-            worksheet.append([*row_values, rccm_by_dsf.get(current_dsf_id)])
+            worksheet.append([*row_values, _rccm_cell(rccm_by_dsf.get(current_dsf_id))])
             exported += 1
         if exported != len(dsf_ids):
             raise ValueError(f"{len(dsf_ids)} DSF attendues, {exported} exportées.")
