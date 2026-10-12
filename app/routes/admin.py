@@ -13,6 +13,7 @@ from app.services.work_scope_service import (
     dsf_in_scope,
     normalize_requested_year,
     raw_values_for_year,
+    scope_values,
     year_stats,
 )
 from app.services.auth_service import admin_required, login_required, create_user, current_user, normalize_full_name
@@ -301,11 +302,14 @@ def global_search():
         assignment = "all"
     if not current_user().is_admin:
         assignment = "assigned"
-    activity, branches = activity_groups(assigned_only=not current_user().is_admin)
+    years = scope_values(current_user())  # None = toutes les années (administrateur ou compte non limité)
+    activity, branches = activity_groups(assigned_only=not current_user().is_admin, annee_values=years)
     branch = request.args.get("branch", "")
     page = max(1, request.args.get("page", 1, type=int))
     per_page = 50
     query = DSF.query.join(ImportSession).outerjoin(User, DSF.assigned_to_id == User.id)
+    if years is not None:
+        query = query.filter(DSF.annee.in_(years))
     if branch:
         query = query.filter(DSF.id.in_([i for i, a in activity.items() if a["key"] == branch]))
     if assignment == "assigned":

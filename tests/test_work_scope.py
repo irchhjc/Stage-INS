@@ -82,7 +82,7 @@ def test_limited_controller_only_sees_and_claims_their_year(app, client):
     assert "annee_2024.xlsx</small>" in html and "annee_2025.xlsx</small>" not in html
     assert "périmètre de travail" in html and "année 2024" in html
     dashboard = me.get("/").get_data(as_text=True)
-    assert "Tous les classeurs importés (2) · 2 DSF" in dashboard and "périmètre" in dashboard
+    assert "Tous les classeurs importés (1) · 2 DSF" in dashboard and "périmètre" in dashboard
 
     out_of_scope = DSF.query.filter_by(import_session_id=first.id).first()
     in_scope = DSF.query.filter_by(import_session_id=second.id).first()
@@ -100,15 +100,59 @@ def test_unlimited_controller_and_admin_see_every_year(app, client):
     assert client.get("/dsfs").get_data(as_text=True).count("<tr data-search=") == 4
 
 
-def test_already_assigned_dsfs_stay_in_my_dsfs_after_scope_change(app, client):
+def test_my_dsfs_follows_the_scope_and_says_how_many_are_hidden(app, client):
     first, second = _import_two_years(client)
     alice = create_user("alice", "motdepasse10", role="controller")
     old = DSF.query.filter_by(import_session_id=first.id).first()
     old.assigned_to_id, old.status = alice.id, "in_progress"
     alice.work_year = "2024"
     db.session.commit()
+    me = _login(app, "alice")
 
-    assert _login(app, "alice").get("/my-dsfs").get_data(as_text=True).count("<tr data-search=") == 1
+    html = me.get("/my-dsfs").get_data(as_text=True)
+    assert html.count("<tr data-search=") == 0
+    assert "1 DSF affectée(s) d'une autre année masquée(s)" in html
+    # L'accès direct à une DSF déjà affectée n'est jamais coupé.
+    assert me.get(f"/dsf/{old.id}").status_code == 200
+
+    alice.work_year = "2025"
+    db.session.commit()
+    html = me.get("/my-dsfs").get_data(as_text=True)
+    assert html.count("<tr data-search=") == 1 and "masquée" not in html
+
+
+def test_workbook_selector_only_offers_workbooks_with_dsfs_of_the_scope(app, client):
+    first, second = _import_two_years(client)
+    alice = create_user("alice", "motdepasse10", role="controller")
+    alice.work_year = "2024"
+    db.session.commit()
+    me = _login(app, "alice")
+
+    html = me.get("/dsfs").get_data(as_text=True)
+
+    assert f'<option value="{second.id}"' in html
+    assert f'<option value="{first.id}"' not in html
+    assert "Tous les classeurs importés (1)" in html
+    # Un identifiant de classeur hors périmètre retombe sur « tous » (donc sur l'année du compte).
+    assert me.get(f"/dsfs?session_id={first.id}").get_data(as_text=True).count("<tr data-search=") == 2
+
+
+def test_team_search_and_branch_filter_are_limited_to_the_scope(app, client):
+    first, second = _import_two_years(client)
+    alice = create_user("alice", "motdepasse10", role="controller")
+    bruno = create_user("bruno", "motdepasse10", role="controller")
+    for dsf in DSF.query.all():
+        dsf.assigned_to_id = bruno.id
+    alice.work_year = "2024"
+    db.session.commit()
+    me = _login(app, "alice")
+
+    html = me.get("/admin/search").get_data(as_text=True)
+
+    assert "2 DSF trouvée(s)" in html
+    assert "annee_2025.xlsx" not in html and "annee_2024.xlsx" in html
+    assert _login(app, "bruno").get("/admin/search").get_data(as_text=True).count("DSF trouvée(s)") == 1
+    assert "4 DSF trouvée(s)" in _login(app, "bruno").get("/admin/search").get_data(as_text=True)
 
 
 def test_admin_assignments_respect_the_controller_scope(client):

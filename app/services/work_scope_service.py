@@ -81,3 +81,15 @@ def normalize_requested_year(raw_value):
     if value not in available_years():
         raise ValueError(f"Aucune DSF de l'année « {value} » n'a été importée.")
     return value
+
+
+def sessions_in_scope(sessions, user):
+    """Classeurs qui contiennent au moins une DSF du périmètre (tous si le compte n'est pas limité)."""
+    years = scope_values(user)
+    if years is None:
+        return sessions
+    present = {
+        session_id
+        for (session_id,) in db.session.query(DSF.import_session_id).filter(DSF.annee.in_(years)).distinct().all()
+    }
+    return [item for item in sessions if item.id in present]

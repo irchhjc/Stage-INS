@@ -1,13 +1,13 @@
 from datetime import datetime, timezone
 
 from flask import Blueprint, flash, redirect, render_template, request, url_for
-from sqlalchemy import update
+from sqlalchemy import or_, update
 
 from app.extensions import db
 from app.models import AuditLog, DSF, ImportSession
 from app.services.auth_service import current_user
 from app.services.dsf_service import dashboard_stats, search_dsfs, serialized_display
-from app.services.work_scope_service import dsf_in_scope, scope_label, scope_values
+from app.services.work_scope_service import dsf_in_scope, scope_label, scope_values, sessions_in_scope
 
 
 main_bp = Blueprint("main", __name__)
@@ -17,15 +17,17 @@ def _accessible_sessions(owned_active_only=False):
     user = current_user()
     query = ImportSession.query.order_by(ImportSession.imported_at.desc())
     if user.is_admin or not owned_active_only:
-        return query.all()
-    return (
+        # Le sélecteur de classeurs ne propose que ceux qui contiennent des DSF du périmètre de travail.
+        return sessions_in_scope(query.all(), user)
+    return sessions_in_scope(
         query.join(DSF)
         .filter(
             DSF.assigned_to_id == user.id,
             DSF.status.in_(("in_progress", "completed")),
         )
         .distinct()
-        .all()
+        .all(),
+        user,
     )
 
 
@@ -117,9 +119,20 @@ def my_dsf_list():
         assigned_to_id=user.id,
         statuses=("in_progress", "completed"),
         import_session_ids=session_ids,
+        annee_values=scope_values(user),
     ) if sessions else []
+    years = scope_values(user)
+    hidden_count = 0
+    if years is not None:
+        hidden_count = DSF.query.filter(
+            DSF.assigned_to_id == user.id,
+            DSF.status.in_(("in_progress", "completed")),
+            or_(DSF.annee.is_(None), DSF.annee.not_in(years)),
+        ).count()
     return render_template(
         "dsf_list.html",
+        work_scope=scope_label(user) if user.work_year else None,
+        hidden_count=hidden_count,
         dsfs=dsfs,
         term=term,
         selected_status=status,

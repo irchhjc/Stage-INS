@@ -19,7 +19,7 @@ def is_sub_branch(header):
     }
 
 
-def activity_groups(session_id=None, assigned_only=False):
+def activity_groups(session_id=None, assigned_only=False, annee_values=None):
     columns = ImportColumn.query
     if session_id is not None:
         columns = columns.filter_by(import_session_id=session_id)
@@ -29,6 +29,8 @@ def activity_groups(session_id=None, assigned_only=False):
         dsfs = dsfs.filter(DSF.import_session_id == session_id)
     if assigned_only:
         dsfs = dsfs.filter(DSF.assigned_to_id.is_not(None))
+    if annee_values is not None:
+        dsfs = dsfs.filter(DSF.annee.in_(annee_values))
     owners = dict(dsfs.all())
     parts = defaultdict(list)
     if column_ids and owners:
