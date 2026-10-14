@@ -485,3 +485,25 @@ def test_global_dashboard_export_disabled_when_empty(client):
     assert button and "disabled" in button.group(0)
     assert "Exporter toutes les DSF terminées (0)" in html
     assert client.post("/export/all-completed").status_code == 302
+
+
+def test_validate_all_is_reserved_to_the_administrator(app, client, imported_session):
+    from app.services.auth_service import create_user
+
+    first = DSF.query.order_by(DSF.id).first()
+    controller = create_user("ctrl-bulk", "motdepasse10", role="controller")
+    first.assigned_to_id = controller.id
+    db.session.commit()
+    other = app.test_client()
+    other.post("/auth/login", data={"username": "ctrl-bulk", "password": "motdepasse10"})
+
+    for url in (f"/dsf/{first.id}", f"/dsf/{first.id}/fiche/IDENT"):
+        page = other.get(url).get_data(as_text=True)
+        assert "Tout valider" not in page and "sidebar-validate-all" not in page
+        assert "Tout valider" in client.get(url).get_data(as_text=True)  # l'administrateur le garde
+
+    refused = other.post(f"/dsf/api/{first.id}/fiches/validate-all", json={})
+    assert refused.status_code == 403
+    assert "réservée à l'administrateur" in refused.get_json()["error"]
+    assert db.session.get(DSF, first.id).status == "not_started"
+    assert client.post(f"/dsf/api/{first.id}/fiches/validate-all", json={}).status_code == 200

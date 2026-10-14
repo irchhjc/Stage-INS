@@ -160,10 +160,7 @@ def test_admin_assignment_lock_and_controller_scope(e2e_server):
 
         _login(page, base_url, "controleur", "motdepasse10")
         page.goto(f"{base_url}{controller_href}/fiche/BILAN_PASSIF")
-        validate_all = page.get_by_role("button", name="Valider toutes les fiches")
-        expect(validate_all).to_be_visible()
-        validate_all.click()
-        expect(page).to_have_url(re.compile(r"/dsf/1$"))
-        expect(page.get_by_text(re.compile(r"35 / 35 fiches"))).to_be_visible()
-        expect(page.get_by_role("button", name="Toutes les fiches sont déjà traitées")).to_be_disabled()
+        # « Tout valider » est réservé à l'administrateur : absent chez le contrôleur.
+        expect(page.get_by_role("button", name="Valider toutes les fiches")).to_have_count(0)
+        expect(page.get_by_text("Tout valider")).to_have_count(0)
         browser.close()

@@ -238,6 +238,8 @@ def _bulk_validation_anomalies(dsf_id, pending_fiches):
 @dsf_bp.post("/api/<int:dsf_id>/fiches/validate-all")
 def api_validate_all_fiches(dsf_id):
     dsf = accessible_dsf_or_404(dsf_id)
+    if not current_user().is_admin:
+        return jsonify(ok=False, error="La validation globale est réservée à l'administrateur."), 403
     payload = request.get_json(silent=True) or {}
     pending_fiches = (
         FicheStatus.query.filter(
